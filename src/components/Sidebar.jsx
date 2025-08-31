@@ -14,7 +14,7 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu }) => {
           <span className="hamburger-line"></span>
         </button>
         <div className="mobile-logo">
-          <div className="logo-icon">
+          <div className="logo-icon"> 
             <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
               {/* Logo SVG path */}
             </svg>
