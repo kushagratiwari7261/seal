@@ -168,93 +168,103 @@ function App() {
       {isAuthenticated && <Sidebar mobileMenuOpen={mobileMenuOpen} toggleMobileMenu={toggleMobileMenu} />}
       <main className="main-content">
         <Routes>
-          <Route 
-            path="/login" 
-            element={
-              isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login onLogin={handleLogin} />
-            } 
-          />
-          <Route 
-            path="/" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/customers" 
-            element={
-              <ProtectedRoute>
-                <CustomerPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/new-shipment" 
-            element={
-              <ProtectedRoute>
-                <NewShipments />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/reports" 
-            element={
-              <ProtectedRoute>
-                <ReportsPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/settings" 
-            element={
-              <ProtectedRoute>
-                <SettingsPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/warehouse" 
-            element={
-              <ProtectedRoute>
-                <WarehousePage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/job-orders" 
-            element={
-              <ProtectedRoute>
-                <ActiveJob activities={ActiveJobs} />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/invoices" 
-            element={
-              <ProtectedRoute>
-                <InvoicesPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/messages" 
-            element={
-              <ProtectedRoute>
-                <MessagesPage />
-              </ProtectedRoute>
-            } 
-          />
-        </Routes>
+  <Route 
+    path="/login" 
+    element={
+      isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login onLogin={handleLogin} />
+    } 
+  />
+
+  {/* 👇 Make root go to login (or dashboard if already logged in) */}
+  <Route 
+    path="/" 
+    element={
+      isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+    } 
+  />
+
+  <Route 
+    path="/dashboard" 
+    element={
+      <ProtectedRoute>
+        <Dashboard />
+      </ProtectedRoute>
+    } 
+  />
+
+  <Route 
+    path="/customers" 
+    element={
+      <ProtectedRoute>
+        <CustomerPage />
+      </ProtectedRoute>
+    } 
+  />
+
+  <Route 
+    path="/new-shipment" 
+    element={
+      <ProtectedRoute>
+        <NewShipments />
+      </ProtectedRoute>
+    } 
+  />
+
+  <Route 
+    path="/reports" 
+    element={
+      <ProtectedRoute>
+        <ReportsPage />
+      </ProtectedRoute>
+    } 
+  />
+
+  <Route 
+    path="/settings" 
+    element={
+      <ProtectedRoute>
+        <SettingsPage />
+      </ProtectedRoute>
+    } 
+  />
+
+  <Route 
+    path="/warehouse" 
+    element={
+      <ProtectedRoute>
+        <WarehousePage />
+      </ProtectedRoute>
+    } 
+  />
+
+  <Route 
+    path="/job-orders" 
+    element={
+      <ProtectedRoute>
+        <ActiveJob activities={ActiveJobs} />
+      </ProtectedRoute>
+    } 
+  />
+
+  <Route 
+    path="/invoices" 
+    element={
+      <ProtectedRoute>
+        <InvoicesPage />
+      </ProtectedRoute>
+    } 
+  />
+
+  <Route 
+    path="/messages" 
+    element={
+      <ProtectedRoute>
+        <MessagesPage />
+      </ProtectedRoute>
+    } 
+  />
+</Routes>
+
       </main>
     </div>
   )
