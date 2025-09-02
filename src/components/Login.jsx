@@ -14,21 +14,14 @@ const Login = ({ onLogin }) => {
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Check if user is already logged in
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      navigate('/dashboard');
-      return;
-    }
+useEffect(() => {
+  // Simulate loading screen
+  const timer = setTimeout(() => {
+    setIsLoading(false);
+  }, 2500);
 
-    // Simulate loading screen
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 2500);
-
-    return () => clearTimeout(timer);
-  }, [navigate]);
+  return () => clearTimeout(timer);
+}, []); // Remove navigate from dependencies
 
   const isValidEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -54,47 +47,42 @@ const Login = ({ onLogin }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMessage('');
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setMessage('');
+  
+  if (!validateForm()) {
+    return;
+  }
+
+  setIsLoggingIn(true);
+
+  try {
+    const result = await authenticateUser(email, password, rememberMe);
     
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsLoggingIn(true);
-
-    try {
-      const result = await authenticateUser(email, password, rememberMe);
+    if (result.success) {
+      setMessage('Login successful! Redirecting to dashboard...');
       
-      if (result.success) {
-        setMessage('Login successful! Redirecting to dashboard...');
-        
-        // Store authentication token
-        localStorage.setItem('authToken', 'demo-token');
-        if (rememberMe) {
-          localStorage.setItem('rememberMe', 'true');
-        }
-        
-        // Call the onLogin callback if provided
-        if (onLogin) {
-          onLogin();
-        }
-        
-        // Redirect to dashboard after successful login
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 1500);
-      } else {
-        setMessage(result.error || 'Invalid email or password. Please try again.');
+      // Store authentication token
+      localStorage.setItem('authToken', 'demo-token');
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      setMessage('An unexpected error occurred. Please try again.');
-    } finally {
-      setIsLoggingIn(false);
+      
+      // Call the onLogin callback - this is crucial!
+      if (onLogin) {
+        onLogin(); // This should update the state in App.jsx
+      }
+    } else {
+      setMessage(result.error || 'Invalid email or password. Please try again.');
     }
-  };
+  } catch (error) {
+    console.error('Login error:', error);
+    setMessage('An unexpected error occurred. Please try again.');
+  } finally {
+    setIsLoggingIn(false);
+  }
+};
 
   // Placeholder authentication function
   const authenticateUser = async (email, password, rememberMe) => {
@@ -132,17 +120,19 @@ const Login = ({ onLogin }) => {
     alert('To create a new account, please contact your system administrator:\n\nEmail: admin@freightco.com\nPhone: +1 (555) 123-4567\n\nThey will set up your account and provide login credentials.');
   };
 
-  const handleDemoLogin = (demoEmail, demoPassword) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    
-    // Auto-submit after a short delay to show the loading state
-    setTimeout(() => {
+ const handleDemoLogin = (demoEmail, demoPassword) => {
+  setEmail(demoEmail);
+  setPassword(demoPassword);
+  
+  // Auto-submit after a short delay
+  setTimeout(() => {
+    const form = document.querySelector('.login-form');
+    if (form) {
       const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-      document.querySelector('.login-form').dispatchEvent(submitEvent);
-    }, 500);
-  };
-
+      form.dispatchEvent(submitEvent);
+    }
+  }, 500);
+};
  if (isLoading) {
     return (
       <div id="loading-screen" className="loading-screen">

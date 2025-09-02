@@ -19,12 +19,15 @@ function App() {
 
   // Check if user is authenticated on component mount
   useEffect(() => {
-    const token = localStorage.getItem('authToken')
-    if (token) {
-      setIsAuthenticated(true)
-    }
-    setIsLoading(false)
-  }, [])
+  const token = localStorage.getItem('authToken')
+  if (token) {
+    setIsAuthenticated(true)
+    // Don't navigate here, let the routes handle it
+  } else {
+    setIsAuthenticated(false)
+  }
+  setIsLoading(false)
+}, [])
 
   const statsData = [
     { label: 'Total Shipments', value: '1,250', icon: 'blue', id: 'total-shipments', path: '/new-shipment' },
@@ -61,11 +64,10 @@ function App() {
     navigate('/job-orders')
   }
 
-  const handleLogin = () => {
-    setIsAuthenticated(true)
-    navigate('/dashboard')
-  }
-
+ const handleLogin = () => {
+  setIsAuthenticated(true);
+  navigate('/dashboard');
+};
   const handleLogout = () => {
     localStorage.removeItem('authToken')
     setIsAuthenticated(false)
