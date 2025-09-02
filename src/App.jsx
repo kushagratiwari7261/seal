@@ -1,22 +1,30 @@
 // src/App.jsx
-// src/App.jsx
-import { useState } from 'react'
-import { Routes, Route, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import StatCard from './components/StatCard'
 import ActiveJob from './components/ActiveJob'
 import ActivityTable from './components/ActivityTable'
 import CustomerPage from './components/CustomerPage'
+import Login from './components/Login'
 import './App.css'
-// In your App.jsx
-import NewShipments from './components/NewShipments';
-
-
+import NewShipments from './components/NewShipments'
 
 function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const navigate = useNavigate() // Add this hook
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const navigate = useNavigate()
+
+  // Check if user is authenticated on component mount
+  useEffect(() => {
+    const token = localStorage.getItem('authToken')
+    if (token) {
+      setIsAuthenticated(true)
+    }
+    setIsLoading(false)
+  }, [])
 
   const statsData = [
     { label: 'Total Shipments', value: '1,250', icon: 'blue', id: 'total-shipments', path: '/new-shipment' },
@@ -24,6 +32,7 @@ function App() {
     { label: 'Invoices', value: '15', icon: 'yellow', id: 'Invoices', path: '/invoices' },
     { label: 'Messages', value: '5', icon: 'red', id: 'Messages', path: '/messages' }
   ]
+
   const activitiesData = [
     { date: '2024-07-26', activity: 'Shipment Created', details: 'Shipment #12345 for Acme Corp.', status: 'Completed' },
     { date: '2024-07-25', activity: 'Shipment Updated', details: '#67890 delivery date changed.', status: 'In Progress' },
@@ -31,6 +40,7 @@ function App() {
     { date: '2024-07-23', activity: 'Report Generated', details: 'Monthly shipment report.', status: 'Generated' },
     { date: '2024-07-22', activity: 'Task Completed', details: 'Customs documentation finalized.', status: 'Completed' }
   ]
+
   const ActiveJobs = [
     { date: '2024-07-26', activity: 'Shipment Created', details: 'Shipment #12345 for Acme Corp.', status: 'Completed' },
     { date: '2024-07-25', activity: 'Shipment Updated', details: '#67890 delivery date changed.', status: 'In Progress' },
@@ -39,16 +49,27 @@ function App() {
     { date: '2024-07-22', activity: 'Task Completed', details: 'Customs documentation finalized.', status: 'Completed' }
   ]
 
-
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen)
   }
 
   const createNewShipment = () => {
-    navigate('/new-shipment');
+    navigate('/new-shipment')
   }
-    const creatActiveJob = () => {
-    navigate('/job-orders');
+
+  const creatActiveJob = () => {
+    navigate('/job-orders')
+  }
+
+  const handleLogin = () => {
+    setIsAuthenticated(true)
+    navigate('/dashboard')
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken')
+    setIsAuthenticated(false)
+    navigate('/login')
   }
 
   // Dashboard component
@@ -57,7 +78,8 @@ function App() {
       <Header 
         toggleMobileMenu={toggleMobileMenu} 
         createNewShipment={createNewShipment}
-        creatActiveJob ={creatActiveJob } 
+        creatActiveJob={creatActiveJob}
+        onLogout={handleLogout}
       />
       
       <div className="stats-grid">
@@ -68,19 +90,16 @@ function App() {
             value={stat.value}
             iconType={stat.icon}
             id={stat.id}
-            onClick={() => navigate(stat.path)} // Add this onClick handler
+            onClick={() => navigate(stat.path)}
           />
         ))}
       </div>
 
-     
       <div className="card">
-        
         <ActiveJob activities={ActiveJobs} />
       </div>
 
       <div className="card">
-        
         <ActivityTable activities={activitiesData} />
       </div>
     </>
@@ -115,47 +134,128 @@ function App() {
     </div>
   )
 
-  const JobOrdersPage = () => (
+  const InvoicesPage = () => (
     <div className="page-container">
-      <h1>Job Orders</h1>
-      <p>Create and manage job orders for freight operations.</p>
+      <h1>Invoices</h1>
+      <p>View and manage all your invoices here.</p>
     </div>
   )
-  // Add these component definitions before the return statement
-const InvoicesPage = () => (
-  <div className="page-container">
-    <h1>Invoices</h1>
-    <p>View and manage all your invoices here.</p>
-  </div>
-)
 
-const MessagesPage = () => (
-  <div className="page-container">
-    <h1>Messages</h1>
-    <p>View and manage all your messages here.</p>
-  </div>
-)
-return (
+  const MessagesPage = () => (
+    <div className="page-container">
+      <h1>Messages</h1>
+      <p>View and manage all your messages here.</p>
+    </div>
+  )
+
+  // Protected Route wrapper
+  const ProtectedRoute = ({ children }) => {
+    if (!isAuthenticated) {
+      return <Navigate to="/login" replace />
+    }
+    return children
+  }
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return <div>Loading...</div>
+  }
+
+  return (
     <div className="dashboard-container">
-      <Sidebar mobileMenuOpen={mobileMenuOpen} toggleMobileMenu={toggleMobileMenu} />
+      {isAuthenticated && <Sidebar mobileMenuOpen={mobileMenuOpen} toggleMobileMenu={toggleMobileMenu} />}
       <main className="main-content">
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/customers" element={<CustomerPage />} />
-            <Route path="/new-shipment" element={<NewShipments />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/warehouse" element={<WarehousePage />} />
-          <Route path="/job-orders" element={<ActiveJob/>} />
-          {/* Add these new routes for the other stats */}
-          <Route path="/invoices" element={<InvoicesPage />} />
-          <Route path="/messages" element={<MessagesPage />} />
+          <Route 
+            path="/login" 
+            element={
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login onLogin={handleLogin} />
+            } 
+          />
+          <Route 
+            path="/" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/customers" 
+            element={
+              <ProtectedRoute>
+                <CustomerPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/new-shipment" 
+            element={
+              <ProtectedRoute>
+                <NewShipments />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/reports" 
+            element={
+              <ProtectedRoute>
+                <ReportsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/warehouse" 
+            element={
+              <ProtectedRoute>
+                <WarehousePage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/job-orders" 
+            element={
+              <ProtectedRoute>
+                <ActiveJob activities={ActiveJobs} />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/invoices" 
+            element={
+              <ProtectedRoute>
+                <InvoicesPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/messages" 
+            element={
+              <ProtectedRoute>
+                <MessagesPage />
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
       </main>
     </div>
   )
 }
-
 
 export default App
