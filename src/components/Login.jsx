@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './inde.css'
-import sealLogo from './seal.PNG'; // Import the image
+import sealLogo from './seal.png'; // Import the image
 
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
