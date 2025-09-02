@@ -175,13 +175,17 @@ function App() {
     } 
   />
 
-  {/* 👇 Make root go to login (or dashboard if already logged in) */}
-  <Route 
-    path="/" 
-    element={
-      isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
-    } 
-  />
+<Route path="/" element={<Landing />} />
+<Route path="/login" element={<Login onLogin={handleLogin} />} />
+<Route 
+  path="/dashboard" 
+  element={
+    <ProtectedRoute>
+      <Dashboard />
+    </ProtectedRoute>
+  } 
+/>
+
 
   <Route 
     path="/dashboard" 
