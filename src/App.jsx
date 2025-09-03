@@ -19,7 +19,8 @@ function App() {
 
   // Check if user is authenticated on component mount
   useEffect(() => {
-    const token = localStorage.getItem('authToken')
+    const token = sessionStorage.getItem('authToken')
+    
     // More robust token validation
     if (token && isValidToken(token)) {
       setIsAuthenticated(true)
@@ -28,7 +29,8 @@ function App() {
         navigate('/dashboard', { replace: true })
       }
     } else {
-      localStorage.removeItem('authToken')
+      // Clear token if invalid
+      sessionStorage.removeItem('authToken')
       setIsAuthenticated(false)
       // Redirect to login if not authenticated and trying to access protected routes
       if (window.location.pathname !== '/login') {
@@ -85,8 +87,8 @@ function App() {
     // Generate a more realistic fake token
     const fakeToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
     
-    // Save token to localStorage
-    localStorage.setItem("authToken", fakeToken)
+    // Save token to sessionStorage (cleared when browser/tab is closed)
+    sessionStorage.setItem("authToken", fakeToken)
     
     // Update state
     setIsAuthenticated(true)
@@ -96,7 +98,7 @@ function App() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken')
+    sessionStorage.removeItem('authToken')
     setIsAuthenticated(false)
     navigate('/login', { replace: true })
   }
