@@ -109,10 +109,11 @@ const ActiveJob = ({ activities }) => {
   const jobTypes = [
     'AIR FREIGHT ',
     'SEA FREIGHT ',
-    'OTHERS',
     'LAND  ',
     'TANSPORT ',
+     'OTHERS',
   ];
+
 
   const categories = [
     'AGENT', 'ARLINE', 'BANK', 'BIKE', 'BIOKER', 'BUYER', 
