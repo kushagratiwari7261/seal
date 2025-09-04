@@ -11,10 +11,10 @@ const ActiveJob = ({ activities }) => {
   const [showJobForm, setShowJobForm] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
   const [jobType, setJobType] = useState('');
+  const [tradeDirection, setTradeDirection] = useState(''); // 'export' or 'import'
   const [showOrgModal, setShowOrgModal] = useState(false);
   const [amount, setAmount] = useState("27.22");
   const [validationErrors, setValidationErrors] = useState({});
-
   const [loading, setLoading] = useState(false);
   const [jobs, setJobs] = useState([]);
   const [error, setError] = useState(null);
@@ -55,6 +55,7 @@ const ActiveJob = ({ activities }) => {
     
     // New fields for step 2
     exporter: '',
+    importer: '',
     invoiceNo: '',
     invoiceDate: '',
     stuffingDate: '',
@@ -102,18 +103,23 @@ const ActiveJob = ({ activities }) => {
 
   const steps = [
     'Create Job',
+    'Trade Direction',
     'Port Details',
     'Summary'
   ];
 
   const jobTypes = [
-    'AIR FREIGHT ',
-    'SEA FREIGHT ',
-    'LAND  ',
-    'TANSPORT ',
-     'OTHERS',
+    'AIR FREIGHT',
+    'SEA FREIGHT',
+    'LAND',
+    'TRANSPORT',
+    'OTHERS',
   ];
 
+  const tradeDirections = [
+    'EXPORT',
+    'IMPORT'
+  ];
 
   const categories = [
     'AGENT', 'ARLINE', 'BANK', 'BIKE', 'BIOKER', 'BUYER', 
@@ -123,13 +129,14 @@ const ActiveJob = ({ activities }) => {
   // Define required fields for each step
   const requiredFields = {
     1: ['jobType'],
-    2: ['jobNo', 'exporter', 'invoiceNo', 'invoiceDate', 'stuffingDate', 
+    2: ['tradeDirection'],
+    3: ['jobNo', 'exporter', 'importer', 'invoiceNo', 'invoiceDate', 'stuffingDate', 
         'hoDate', 'terms', 'consignee', 'noOfCartoons', 'sbNo', 'sbDate',
         'pol', 'pod', 'destination', 'commodity', 'fob', 'grWeight', 
         'netWeight', 'railOutDate', 'containerNo', 'noOfCntr', 'volume',
         'sLine', 'mblNo', 'mblDate', 'hblNo', 'hblDt', 'vessel', 'voy',
         'etd', 'sob', 'eta', 'ac', 'billNo', 'billDate', 'ccPort'],
-    3: [] // No required fields for summary
+    4: [] // No required fields for summary
   };
 
   // Fetch jobs from Supabase
@@ -180,9 +187,21 @@ const ActiveJob = ({ activities }) => {
       if (!jobType) {
         errors.jobType = 'Job type is required';
       }
+    } else if (step === 2) {
+      if (!tradeDirection) {
+        errors.tradeDirection = 'Trade direction is required';
+      }
     } else {
       fieldsToValidate.forEach(field => {
-        if (!formData[field] || formData[field].toString().trim() === '') {
+        // Only validate exporter/importer based on trade direction
+        if (field === 'exporter' && tradeDirection === 'EXPORT' && 
+            (!formData[field] || formData[field].toString().trim() === '')) {
+          errors[field] = `${field} is required`;
+        } else if (field === 'importer' && tradeDirection === 'IMPORT' && 
+            (!formData[field] || formData[field].toString().trim() === '')) {
+          errors[field] = `${field} is required`;
+        } else if (field !== 'exporter' && field !== 'importer' && 
+            (!formData[field] || formData[field].toString().trim() === '')) {
           errors[field] = `${field} is required`;
         }
       });
@@ -209,6 +228,7 @@ const ActiveJob = ({ activities }) => {
   const handleCancel = () => {
     setActiveStep(1);
     setJobType('');
+    setTradeDirection('');
     setShowJobForm(false);
     setValidationErrors({});
   };
@@ -245,6 +265,18 @@ const ActiveJob = ({ activities }) => {
       setValidationErrors(prev => {
         const newErrors = {...prev};
         delete newErrors.jobType;
+        return newErrors;
+      });
+    }
+  };
+
+  const handleTradeDirectionSelect = (direction) => {
+    setTradeDirection(direction);
+    // Clear trade direction validation error if any
+    if (validationErrors.tradeDirection) {
+      setValidationErrors(prev => {
+        const newErrors = {...prev};
+        delete newErrors.tradeDirection;
         return newErrors;
       });
     }
@@ -292,6 +324,7 @@ const ActiveJob = ({ activities }) => {
       const jobData = {
         ...formData,
         job_type: jobType,
+        trade_direction: tradeDirection,
         // Convert date strings to proper format if needed
         job_date: new Date(formData.jobDate).toISOString(),
         etd: new Date(formData.etd).toISOString(),
@@ -309,6 +342,7 @@ const ActiveJob = ({ activities }) => {
       // Reset form and show success
       setActiveStep(1);
       setJobType('');
+      setTradeDirection('');
       setShowJobForm(false);
       setValidationErrors({});
       setSuccess('Job created successfully!');
@@ -321,6 +355,24 @@ const ActiveJob = ({ activities }) => {
       setLoading(false);
     }
   };
+  // Helper function to conditionally render fields based on trade direction
+const renderConditionalField = (fieldName, condition) => {
+  return condition ? (
+    <div className="form-group">
+      <label>{fieldName} <span className="required">*</span></label>
+      <input 
+        type="text" 
+        name={fieldName.toLowerCase().replace(' ', '')}
+        value={formData[fieldName.toLowerCase().replace(' ', '')]}
+        onChange={handleInputChange}
+        className={validationErrors[fieldName.toLowerCase().replace(' ', '')] ? 'error' : ''}
+      />
+      {validationErrors[fieldName.toLowerCase().replace(' ', '')] && 
+        <span className="field-error">{validationErrors[fieldName.toLowerCase().replace(' ', '')]}</span>
+      }
+    </div>
+  ) : null;
+};
 
   // Sample job data
   const sampleJobs = [
@@ -458,8 +510,28 @@ const ActiveJob = ({ activities }) => {
                 )}
 
                 {activeStep === 2 && (
+                  <div className="trade-direction-selection">
+                    <h2>Is this an Export or Import job?</h2>
+                    {validationErrors.tradeDirection && (
+                      <div className="validation-error">{validationErrors.tradeDirection}</div>
+                    )}
+                    <div className="trade-direction-grid">
+                      {tradeDirections.map((direction, index) => (
+                        <div 
+                          key={`direction-${index}`} 
+                          className={`trade-direction-card ${tradeDirection === direction ? 'selected' : ''}`}
+                          onClick={() => handleTradeDirectionSelect(direction)}
+                        >
+                          {direction}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeStep === 3 && (
                   <div className="port-details-form">
-                    <h2>Port Details</h2>
+                    <h2>Port Details - {tradeDirection}</h2>
                     <div className="form-grid-two-column">
                       {/* Job No */}
                       <div className="form-group">
@@ -474,18 +546,35 @@ const ActiveJob = ({ activities }) => {
                         {validationErrors.jobNo && <span className="field-error">{validationErrors.jobNo}</span>}
                       </div>
                       
-                      {/* Exporter */}
-                      <div className="form-group">
-                        <label>Exporter <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="exporter"
-                          value={formData.exporter}
-                          onChange={handleInputChange}
-                          className={validationErrors.exporter ? 'error' : ''}
-                        />
-                        {validationErrors.exporter && <span className="field-error">{validationErrors.exporter}</span>}
-                      </div>
+                      {/* Exporter (only for export jobs) */}
+                      {tradeDirection === 'EXPORT' && (
+                        <div className="form-group">
+                          <label>Exporter <span className="required">*</span></label>
+                          <input 
+                            type="text" 
+                            name="exporter"
+                            value={formData.exporter}
+                            onChange={handleInputChange}
+                            className={validationErrors.exporter ? 'error' : ''}
+                          />
+                          {validationErrors.exporter && <span className="field-error">{validationErrors.exporter}</span>}
+                        </div>
+                      )}
+                      
+                      {/* Importer (only for import jobs) */}
+                      {tradeDirection === 'IMPORT' && (
+                        <div className="form-group">
+                          <label>Importer <span className="required">*</span></label>
+                          <input 
+                            type="text" 
+                            name="importer"
+                            value={formData.importer}
+                            onChange={handleInputChange}
+                            className={validationErrors.importer ? 'error' : ''}
+                          />
+                          {validationErrors.importer && <span className="field-error">{validationErrors.importer}</span>}
+                        </div>
+                      )}
                       
                       {/* Invoice No */}
                       <div className="form-group">
@@ -936,9 +1025,9 @@ const ActiveJob = ({ activities }) => {
                   </div>
                 )}
 
-                {activeStep === 3 && (
+                {activeStep === 4 && (
                   <div className="summary-step">
-                    <h2>Summary</h2>
+                    <h2>Summary - {tradeDirection}</h2>
                     
                     <div className="client-branch-section">
                       <div className="client-info">
@@ -968,8 +1057,18 @@ const ActiveJob = ({ activities }) => {
                         <div className="booking-info-row">
                           <span className="label">Job No:</span>
                           <span className="value">{formData.jobNo}</span>
-                          <span className="label">Exporter:</span>
-                          <span className="value">{formData.exporter}</span>
+                          {tradeDirection === 'EXPORT' && (
+                            <>
+                              <span className="label">Exporter:</span>
+                              <span className="value">{formData.exporter}</span>
+                            </>
+                          )}
+                          {tradeDirection === 'IMPORT' && (
+                            <>
+                              <span className="label">Importer:</span>
+                              <span className="value">{formData.importer}</span>
+                            </>
+                          )}
                         </div>
                         <div className="booking-info-row">
                           <span className="label">Invoice No:</span>
