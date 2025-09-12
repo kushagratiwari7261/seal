@@ -1,126 +1,220 @@
 // src/components/NewShipments.jsx
-import { useState, useRef, useEffect } from 'react';
-import { jsPDF } from 'jspdf';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { PDFDownloadLink } from '@react-pdf/renderer'; // Add this import
+import PDFGenerator from './PDFGenerator.jsx'; // Add this import
+
+import { supabase } from '../lib/supabaseClient';
 import './NewShipments.css';
 
+
+// Constants for better maintainability
+const SHIPMENT_TYPES = ['AIR FREIGHT', 'SEA FREIGHT', 'LAND', 'TRANSPORT', 'OTHERS'];
+const STEPS = ['Create Shipment', 'Port Details', 'Summary'];
+const CATEGORIES = [
+  'AGENT', 'ARLINE', 'BANK', 'BIKE', 'BIOKER', 'BUYER', 
+  'CAREER', 'CAREER AGENT'
+];
+
+// Initial form data
+
+const INITIAL_FORM_DATA = {
+  branch: 'CHENNAI (MAA)',
+  department: 'FCL EXPORT',
+  shipmentDate: new Date().toISOString().split('T')[0],
+  client: 'AMAZON PVT LMD',
+  shipper: 'AMAZON PVT LMD',
+  consignee: 'FRESA TECHNOLOGIES FZE',
+  address: 'PRIMARY, OFFICE, SHIPPING/',
+  por: 'INMAA-CHENNAI (EX',
+  poi: 'INMAA-CHENNAI (EX',
+  pod: 'AEDXB-DUBAI/UNITED ARAB',
+  pof: 'AEDXB-DUBAI/UNITED ARAB',
+  hblNo: '',
+  jobNo: '', // Will be populated from dropdown
+  etd: '',
+  eta: '',
+  incoterms: 'Cost and Freight-(CFR)',
+  serviceType: 'FCL',
+  freight: 'Prepaid',
+  payableAt: 'CHENNAI (EX MADRAS)',
+  dispatchAt: 'CHENNAI (EX MADRAS)',
+  
+  // Additional fields for summary
+  HSCode: '',
+  pol: 'CHENNAI (EX MADRAS), INDIA',
+  pdf: 'DUBAI, UAE',
+  carrier: 'SEAWAYS SHIPPING AND LOGISTICS LIMITED',
+  vesselNameSummary: 'TIGER SEA / 774',
+  noOfRes: '$000',
+  volume: '$000',
+  grossWeight: '$00000',
+  description: 'A PACK OF FURNITURES',
+  remarks: '',
+};
+
+const INITIAL_ORG_FORM_DATA = {
+  name: 'KRYTON LOGISTICS',
+  recordStatus: 'Active',
+  salesPerson: '',
+  category: 'AGENT',
+  branch: 'CHENNAI',
+  contactPerson: 'ARUNA',
+  doorNo: '',
+  buildingName: '',
+  street: '',
+  area: '',
+  city: '',
+  state: ''
+};
+
 const NewShipments = () => {
+  
   const [showShipmentForm, setShowShipmentForm] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
   const [shipmentType, setShipmentType] = useState('');
   const [showOrgModal, setShowOrgModal] = useState(false);
   const [amount, setAmount] = useState("27.22");
   const [validationErrors, setValidationErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [shipments, setShipments] = useState([]);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const [editingShipment, setEditingShipment] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [shipmentToDelete, setShipmentToDelete] = useState(null);
+  const [jobs, setJobs] = useState([]); // State to store jobs for dropdown
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+   const [generatePDF, setGeneratePDF] = useState(false);
+  const [pdfShipmentData, setPdfShipmentData] = useState(null); // Add this state to store data for PDF
+  
   const tableContainerRef = useRef(null);
   const [maxHeight, setMaxHeight] = useState('auto');
-  
-  const [formData, setFormData] = useState({
-    branch: 'CHENNAI (MAA)',
-    department: 'FCL EXPORT',
-    shipmentDate: '2019-06-11',
-    client: 'AMAZON PVT LMD',
-    shipper: 'AMAZON PVT LMD',
-    consignee: 'FRESA TECHNOLOGIES FZE',
-    address: 'PRIMARY, OFFICE, SHIPPING/',
-    por: 'INMAA-CHENNAI (EX',
-    poi: 'INMAA-CHENNAI (EX',
-    pod: 'AEDXB-DUBAI/UNITED ARAB',
-    pof: 'AEDXB-DUBAI/UNITED ARAB',
-    hblNo: '43544489644',
-    etd: '2019-06-11T08:13',
-    eta: '2019-06-30T08:13',
-    incoterms: 'Cost and Freight-(CFR)',
-    serviceType: 'FCL',
-    freight: 'Prepaid',
-    payableAt: 'CHENNAI (EX MADRAS)',
-    dispatchAt: 'CHENNAI (EX MADRAS)',
-    
-    // Additional fields for summary
-    HSCode: '',
-    pol: 'CHENNAI (EX MADRAS), INDIA',
-    pdf: 'DUBAI, UAE',
-    carrier: 'SEAWAYS SHIPPING AND LOGISTICS LIMITED',
-    vesselNameSummary: 'TIGER SEA / 774',
-    noOfRes: '$000',
-    volume: '$000',
-    grossWeight: '$00000',
-    description: 'A PACK OF FURNITURES',
-    remarks: '',
-  });
-
-  const [orgFormData, setOrgFormData] = useState({
-    name: 'KRYTON LOGISTICS',
-    recordStatus: 'Active',
-    salesPerson: '',
-    category: 'AGENT',
-    branch: 'CHENNAI',
-    contactPerson: 'ARUNA',
-    doorNo: '',
-    buildingName: '',
-    street: '',
-    area: '',
-    city: '',
-    state: ''
-  });
-
-  // Sample shipment data
-  const sampleShipments = [
-    {
-      hblNo: "CMAASE190318",
-      client: "FRESA DEMO DUBAI LLC",
-      pol: "INMAA",
-      pod: "AEDXB",
-      etd: "2024-08-30",
-      eta: "2024-09-05"
-    },
-    {
-      hblNo: "CMAASE190157",
-      client: "AMAZON PVT LMD",
-      pol: "INMAA",
-      pod: "AEDXB",
-      etd: "2024-08-28",
-      eta: "2024-09-02"
-    }
-  ];
-
-  const steps = [
-    'Create Shipment',
-    'Port Details',
-    'Summary'
-  ];
-
-  const shipmentTypes = [
-    'AIR FREIGHT',
-    'SEA FREIGHT',
-    'OTHERS',
-    'LAND',
-    'TRANSPORT',
-  ];
-
-  const categories = [
-    'AGENT', 'ARLINE', 'BANK', 'BIKE', 'BIOKER', 'BUYER', 
-    'CAREER', 'CAREER AGENT'
-  ];
+  const handlePDFReady = useCallback((blob) => {
+    console.log('PDF is ready for download', blob);
+    // You can add additional handling here if needed
+  }, []);
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
+  const [orgFormData, setOrgFormData] = useState(INITIAL_ORG_FORM_DATA);
 
   // Define required fields for each step
-  const requiredFields = {
+  const requiredFields = useMemo(() => ({
     1: ['shipmentType'],
     2: ['branch', 'department', 'shipmentDate', 'client', 'shipper', 'consignee', 
-        'por', 'pol', 'pod', 'pof', 'hblNo', 'etd', 'eta', 'incoterms', 
+        'por', 'pol', 'pod', 'pof', 'hblNo', 'jobNo', 'etd', 'eta', 'incoterms', 
         'serviceType', 'freight', 'payableAt', 'dispatchAt'],
     3: [] // No required fields for summary
-  };
+  }), []);
 
-  // Adjust max height
+  // Fetch jobs from Supabase for dropdown
+  const fetchJobs = useCallback(async () => {
+    try {
+      setIsLoadingJobs(true);
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      setJobs(data || []);
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+      setError('Failed to load jobs');
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  }, []);
+  
+
+  // Fetch shipments from Supabase
+  const fetchShipments = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('shipments')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Map database fields to display fields with the structure you specified
+      const mappedShipments = (data || []).map(shipment => ({
+        id: shipment.id,
+        shipmentNo: shipment.shipment_no || `${shipment.id.toString().padStart(6, '0')}`,
+        client: shipment.client,
+        jobNo: shipment.job_no || `${shipment.id.toString().padStart(6, '0')}`,
+        por: shipment.por,
+        pof: shipment.pof,
+        createdAt: shipment.created_at ? new Date(shipment.created_at).toLocaleDateString() : '',
+        updatedAt: shipment.updated_at ? new Date(shipment.updated_at).toLocaleDateString() : '',
+        etd: shipment.etd ? new Date(shipment.etd).toLocaleDateString() : '',
+        eta: shipment.eta ? new Date(shipment.eta).toLocaleDateString() : '',
+        // Add all other fields for editing
+        ...shipment
+      }));
+      
+      setShipments(mappedShipments);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load jobs and shipments on component mount
+  useEffect(() => {
+    fetchJobs();
+    fetchShipments();
+  }, [fetchJobs, fetchShipments]);
+
+  // Adjust max height when shipments change
   useEffect(() => {
     if (tableContainerRef.current) {
       const tableHeight = tableContainerRef.current.scrollHeight;
-      const calculatedMaxHeight = Math.min(tableHeight, 400); // 400px max height
+      const calculatedMaxHeight = Math.min(tableHeight, 400);
       setMaxHeight(`${calculatedMaxHeight}px`);
     }
-  }, [sampleShipments]);
+  }, [shipments]);
+
+  // Handle job selection from dropdown
+  const handleJobSelect = useCallback((jobNo) => {
+    if (!jobNo) return;
+    
+    const selectedJob = jobs.find(job => job.job_no === jobNo);
+    if (selectedJob) {
+      // Auto-fill form fields with job data
+      setFormData(prev => ({
+        ...prev,
+        jobNo: selectedJob.job_no,
+        client: selectedJob.client || prev.client,
+        shipper: selectedJob.shipper || prev.shipper,
+        consignee: selectedJob.consignee || prev.consignee,
+        por: selectedJob.por || prev.por,
+        poi: selectedJob.poi || prev.poi,
+        pod: selectedJob.pod || prev.pod,
+        pof: selectedJob.pof || prev.pof,
+        etd: selectedJob.etd || prev.etd,
+        eta: selectedJob.eta || prev.eta,
+        incoterms: selectedJob.incoterms || prev.incoterms,
+        serviceType: selectedJob.service_type || prev.serviceType,
+        freight: selectedJob.freight || prev.freight,
+        payableAt: selectedJob.payable_at || prev.payableAt,
+        dispatchAt: selectedJob.dispatch_at || prev.dispatchAt,
+        pol: selectedJob.pol || prev.pol,
+        pdf: selectedJob.pdf || prev.pdf,
+        carrier: selectedJob.carrier || prev.carrier,
+        vesselNameSummary: selectedJob.vessel_name_summary || prev.vesselNameSummary,
+        noOfRes: selectedJob.no_of_res || prev.noOfRes,
+        volume: selectedJob.volume || prev.volume,
+        grossWeight: selectedJob.gross_weight || prev.grossWeight,
+        description: selectedJob.description || prev.description,
+        remarks: selectedJob.remarks || prev.remarks,
+      }));
+    }
+  }, [jobs]);
 
   // Validate current step before proceeding
-  const validateStep = (step) => {
+  const validateStep = useCallback((step) => {
     const errors = {};
     const fieldsToValidate = requiredFields[step];
     
@@ -138,30 +232,32 @@ const NewShipments = () => {
     
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
-  };
+  }, [shipmentType, formData, requiredFields]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (validateStep(activeStep)) {
-      if (activeStep < steps.length) {
+      if (activeStep < STEPS.length) {
         setActiveStep(activeStep + 1);
       }
     }
-  };
+  }, [activeStep, validateStep]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (activeStep > 1) {
       setActiveStep(activeStep - 1);
     }
-  };
+  }, [activeStep]);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setActiveStep(1);
     setShipmentType('');
     setShowShipmentForm(false);
+    setEditingShipment(null);
     setValidationErrors({});
-  };
+    setFormData(INITIAL_FORM_DATA);
+  }, []);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -176,17 +272,17 @@ const NewShipments = () => {
         return newErrors;
       });
     }
-  };
+  }, [validationErrors]);
 
-  const handleOrgInputChange = (e) => {
+  const handleOrgInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setOrgFormData(prev => ({
       ...prev,
       [name]: value
     }));
-  };
+  }, []);
 
-  const handleShipmentTypeSelect = (type) => {
+  const handleShipmentTypeSelect = useCallback((type) => {
     setShipmentType(type);
     // Clear shipment type validation error if any
     if (validationErrors.shipmentType) {
@@ -196,201 +292,253 @@ const NewShipments = () => {
         return newErrors;
       });
     }
-  };
+  }, [validationErrors]);
 
-  const handleCreateOrganization = () => {
-    // Here you would typically save the organization to your backend
-    // For now, we'll just set the client field to the new organization name
-    setFormData(prev => ({
-      ...prev,
-      client: orgFormData.name
-    }));
-    
-    // Clear any client validation error
-    if (validationErrors.client) {
-      setValidationErrors(prev => {
-        const newErrors = {...prev};
-        delete newErrors.client;
-        return newErrors;
-      });
+  const handleCreateOrganization = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('organizations')
+        .insert([orgFormData])
+        .select();
+      
+      if (error) throw error;
+      
+      // Update the client field with the new organization name
+      setFormData(prev => ({
+        ...prev,
+        client: data[0].name
+      }));
+      
+      // Clear any client validation error
+      if (validationErrors.client) {
+        setValidationErrors(prev => {
+          const newErrors = {...prev};
+          delete newErrors.client;
+          return newErrors;
+        });
+      }
+      
+      // Close the modal
+      setShowOrgModal(false);
+      setSuccess('Organization created successfully!');
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
-    
-    // Close the modal
-    setShowOrgModal(false);
-  };
+  }, [orgFormData, validationErrors]);
 
-  const handleConfirmShipment = () => {
+  const handleConfirmShipment = useCallback(async () => {
     // Final validation before creating shipment
     if (validateStep(activeStep)) {
-      // Handle form submission and then generate PDF
-      generatePDF();
-      // Close the form
-      setShowShipmentForm(false);
-      // Reset the form
-      setActiveStep(1);
-      setShipmentType('');
+      try {
+        setLoading(true);
+        
+        // Prepare shipment data for insertion
+        const shipmentData = {
+          branch: formData.branch,
+          department: formData.department,
+          shipment_date: formData.shipmentDate,
+          client: formData.client,
+          shipper: formData.shipper,
+          consignee: formData.consignee,
+          address: formData.address,
+          por: formData.por,
+          poi: formData.poi,
+          pod: formData.pod,
+          pof: formData.pof,
+          hbl_no: formData.hblNo,
+          job_no: formData.jobNo, // Added job_no field
+          etd: formData.etd,
+          eta: formData.eta,
+          incoterms: formData.incoterms,
+          service_type: formData.serviceType,
+          freight: formData.freight,
+          payable_at: formData.payableAt,
+          dispatch_at: formData.dispatchAt,
+          hs_code: formData.HSCode,
+          pol: formData.pol,
+          pdf: formData.pdf,
+          carrier: formData.carrier,
+          vessel_name_summary: formData.vesselNameSummary,
+          no_of_res: formData.noOfRes,
+          volume: formData.volume,
+          gross_weight: formData.grossWeight,
+          description: formData.description,
+          remarks: formData.remarks,
+          shipment_type: shipmentType,
+          updated_at: new Date().toISOString()
+        };
+        
+        let result;
+        if (editingShipment) {
+          // Update existing shipment
+          const { data: updatedShipment, error } = await supabase
+            .from('shipments')
+            .update(shipmentData)
+            .eq('id', editingShipment.id)
+            .select();
+          
+          if (error) throw error;
+          result = updatedShipment;
+        } else {
+          // Create new shipment
+          const { data: newShipment, error } = await supabase
+            .from('shipments')
+            .insert([shipmentData])
+            .select();
+          
+          if (error) throw error;
+          result = newShipment;
+        }
+        
+        // Generate PDF
+        setPdfShipmentData({
+          ...shipmentData,
+          shipmentNo: editingShipment ? editingShipment.shipmentNo : `MTD-${result?.[0]?.id?.toString().padStart(6, '0') || 'DOCUMENT'}`,
+          // Add any other fields needed for the PDF
+        });
+        
+        // Show PDF generation
+        setGeneratePDF(true);
+        
+        // Close the form and reset
+        handleCancel();
+        setSuccess(editingShipment ? 'Shipment updated successfully!' : 'Shipment created successfully!');
+        
+        // Refresh the shipments list
+        fetchShipments();
+      } catch (error) {
+        console.error('Error saving shipment:', error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
     }
-  };
+  }, [formData, shipmentType, editingShipment, activeStep, validateStep, handleCancel, fetchShipments]);
+  // Handle edit shipment
+  const handleEditShipment = useCallback((shipment) => {
+    setEditingShipment(shipment);
+    setShipmentType(shipment.shipment_type);
+    
+    // Map database fields to form fields
+    const formDataFromShipment = {
+      branch: shipment.branch,
+      department: shipment.department,
+      shipmentDate: shipment.shipment_date,
+      client: shipment.client,
+      shipper: shipment.shipper,
+      consignee: shipment.consignee,
+      address: shipment.address,
+      por: shipment.por,
+      poi: shipment.poi,
+      pod: shipment.pod,
+      pof: shipment.pof,
+      hblNo: shipment.hbl_no,
+      jobNo: shipment.job_no, // Added jobNo field
+      etd: shipment.etd,
+      eta: shipment.eta,
+      incoterms: shipment.incoterms,
+      serviceType: shipment.service_type,
+      freight: shipment.freight,
+      payableAt: shipment.payable_at,
+      dispatchAt: shipment.dispatch_at,
+      HSCode: shipment.hs_code,
+      pol: shipment.pol,
+      pdf: shipment.pdf,
+      carrier: shipment.carrier,
+      vesselNameSummary: shipment.vessel_name_summary,
+      noOfRes: shipment.no_of_res,
+      volume: shipment.volume,
+      grossWeight: shipment.gross_weight,
+      description: shipment.description,
+      remarks: shipment.remarks,
+    };
+    
+    setFormData(formDataFromShipment);
+    setShowShipmentForm(true);
+    setActiveStep(2); // Start at port details step for editing
+  }, []);
 
-  const generatePDF = async () => {
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = pdf.internal.pageSize.width;
-    
-    // Set font styles
-    pdf.setFont('helvetica');
-    
-    // Header - Company Details
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('SEAL FREIGHT FORWARDERS PVT. LTD.', 20, 20);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(10);
-    pdf.text('T-2, IIIrd Floor, H Block Market, LSC Plot No. 7, Manish Complex', 20, 27);
-    pdf.text('Sarita Vihar, New Delhi-110076 INDIA', 20, 34);
-    pdf.text('Mob: +91 8468811866, Tel: +91 022 27566678, 79', 20, 41);
-    pdf.text('Email: info@seal.co.in, Website: www.sealfreight.com', 20, 48);
-    
-    // MTD Registration Number
-    pdf.text('MTD Registration No.: MTD/DOS/566/JAN/2028', 20, 58);
-    pdf.text('CN: U630130L1990PTC042315', 20, 65);
-    
-    // Title
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('MULTIMODAL TRANSPORT DOCUMENT', pageWidth/2, 80, { align: 'center' });
-    
-    let yPosition = 90;
-    
-    // Shipper Section
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Shipper:', 20, yPosition);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(formData.shipper || 'N/A', 20, yPosition + 7);
-    pdf.text(formData.address || 'N/A', 20, yPosition + 14);
-    
-    // Consignee Section
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Consignee (of order):', 110, yPosition);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(formData.consignee || 'N/A', 110, yPosition + 7);
-    
-    // Notify Party
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Notify Party:', 20, yPosition + 28);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(formData.consignee || 'N/A', 20, yPosition + 35);
-    
-    yPosition += 50;
-    
-    // Plan of Acceptance
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Plan of Acceptance', 20, yPosition);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(formData.por || 'N/A', 20, yPosition + 7);
-    
-    yPosition += 20;
-    
-    // Transport Details Table
-    const tableHeaders = ['Vessel', 'Port of Loading', 'Port of Discharge', 'Port of Delivery', 'Modes / Means of Transport'];
-    const tableData = [
-      formData.vesselNameSummary || 'N/A',
-      formData.pol || 'N/A',
-      formData.pod || 'N/A',
-      formData.pof || 'N/A',
-      'SEA FREIGHT'
-    ];
-    
-    const cellWidth = 35;
-    const cellHeight = 10;
-    
-    // Draw table headers
-    pdf.setFont('helvetica', 'bold');
-    tableHeaders.forEach((header, index) => {
-      const x = 20 + (index * cellWidth);
-      pdf.rect(x, yPosition, cellWidth, cellHeight);
-      const textLines = pdf.splitTextToSize(header, cellWidth - 2);
-      pdf.text(textLines, x + 1, yPosition + 5);
-    });
-    
-    yPosition += cellHeight;
-    
-    // Draw table data
-    pdf.setFont('helvetica', 'normal');
-    tableData.forEach((data, index) => {
-      const x = 20 + (index * cellWidth);
-      pdf.rect(x, yPosition, cellWidth, cellHeight);
-      const textLines = pdf.splitTextToSize(data, cellWidth - 2);
-      pdf.text(textLines, x + 1, yPosition + 5);
-    });
-    
-    yPosition += cellHeight + 10;
-    
-    // Container Marks & Number
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Container Marks & Number No(s)', 20, yPosition);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(formData.hblNo || 'N/A', 20, yPosition + 7);
-    
-    // Number of packages, kind of packages, general description of goods
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Number of packages, kind of packages, general description of goods', 70, yPosition);
-    pdf.setFont('helvetica', 'normal');
-    
-    const descriptionText = formData.description || 'N/A';
-    const descriptionLines = pdf.splitTextToSize(descriptionText, 80);
-    pdf.text(descriptionLines, 70, yPosition + 7);
-    
-    // HS Code and other details
-    pdf.text(`HS CODE: ${formData.HSCode || 'N/A'}`, 70, yPosition + 7 + (descriptionLines.length * 5) + 5);
-    
-    yPosition += 30;
-    
-    // Weight Information
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('GROSS WEIGHT', 20, yPosition);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`${formData.grossWeight || 'N/A'} KGS`, 20, yPosition + 7);
-    
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('NET WEIGHT', 70, yPosition);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`${formData.grossWeight || 'N/A'} KGS`, 70, yPosition + 7);
-    
-    yPosition += 20;
-    
-    // Container Numbers
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Container No/Seal No', 20, yPosition);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('CONTAINER_NUMBER_HERE', 20, yPosition + 7);
-    
-    yPosition += 15;
-    
-    // Freight Terms
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Freight Amount', 20, yPosition);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(amount || 'N/A', 20, yPosition + 7);
-    
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Freight Payable at:', 70, yPosition);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(formData.payableAt || 'N/A', 70, yPosition + 7);
-    
-    yPosition += 15;
-    
-    // Footer - Jurisdiction
-    pdf.setFont('helvetica', 'italic');
-    pdf.setFontSize(8);
-    pdf.text('Subject to Delhi Jurisdiction', 20, yPosition);
-    
-    // Save the PDF
-    pdf.save(`MTD_${formData.hblNo || 'Document'}.pdf`);
-  };
+  // Handle delete shipment
+  const handleDeleteShipment = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('shipments')
+        .delete()
+        .eq('id', shipmentToDelete.id);
+      
+      if (error) throw error;
+      
+      setShowDeleteModal(false);
+      setShipmentToDelete(null);
+      setSuccess('Shipment deleted successfully!');
+      
+      // Refresh the shipments list
+      fetchShipments();
+    } catch (error) {
+      console.error('Error deleting shipment:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [shipmentToDelete, fetchShipments]);
+
+  // Confirm delete
+  const confirmDelete = useCallback((shipment) => {
+    setShipmentToDelete(shipment);
+    setShowDeleteModal(true);
+  }, []);
+
+
 
   return (
+
     <div className="new-shipment-container">
+      {generatePDF && pdfShipmentData && (
+        <div style={{ textAlign: 'center', margin: '20px 0', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}>
+          <PDFDownloadLink 
+            document={<PDFGenerator shipmentData={pdfShipmentData} />} 
+            fileName={`${pdfShipmentData.shipmentNo}.pdf`}
+          >
+            {({ blob, url, loading, error }) => {
+              if (blob && !loading && handlePDFReady) {
+                handlePDFReady(blob);
+              }
+              return loading ? 'Generating PDF...' : 'Download PDF Document';
+            }}
+          </PDFDownloadLink>
+          <button 
+            onClick={() => setGeneratePDF(false)} 
+            style={{ marginLeft: '10px', padding: '5px 10px' }}
+          >
+            Close
+          </button>
+        </div>
+        
+      )}
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner">Loading...</div>
+        </div>
+      )}
+
+      {error && (
+        <div className="error-message">
+          Error: {error}
+          <button onClick={() => setError(null)}>Dismiss</button>
+        </div>
+      )}
+
+      {success && (
+        <div className="success-message">
+          {success}
+          <button onClick={() => setSuccess(false)}>Dismiss</button>
+        </div>
+      )}
+      
       {/* Shipment List View */}
       <div className="card expandable-card">
         <div className="table-header">
@@ -408,42 +556,65 @@ const NewShipments = () => {
           <table className="activity-table">
             <thead>
               <tr>
-                <th>HBL No.</th>
+                <th>Shipment No.</th>
                 <th>Client</th>
-                <th>POL</th>
-                <th>POD</th>
-                <th>ETD</th>
-                <th>ETA</th>
+                <th>Job No.</th>
+                <th>POR</th>
+                <th>POF</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {sampleShipments.map((shipment, index) => (
-                <tr key={index}>
-                  <td>{shipment.hblNo}</td>
-                  <td>{shipment.client}</td>
-                  <td>{shipment.pol}</td>
-                  <td>{shipment.pod}</td>
-                  <td>{shipment.etd}</td>
-                  <td>{shipment.eta}</td>
+              {shipments.length > 0 ? (
+                shipments.map((shipment, index) => (
+                  <tr key={index}>
+                    <td>{shipment.shipmentNo}</td>
+                    <td>{shipment.client}</td>
+                    <td>{shipment.jobNo}</td>
+                    <td>{shipment.por}</td>
+                    <td>{shipment.pof}</td>
+                    <td className="actions-cell">
+                      <button 
+                        className="edit-btn"
+                        onClick={() => handleEditShipment(shipment)}
+                        title="Edit Shipment"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        className="delete-btn"
+                        onClick={() => confirmDelete(shipment)}
+                        title="Delete Shipment"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6" style={{textAlign: 'center', padding: '20px'}}>
+                    No shipments found
+                  </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Shipment Creation Form Modal */}
+      {/* Shipment Creation/Edit Form Modal */}
       {showShipmentForm && (
         <div className="modal-overlay">
           <div className="modal-content job-modal">
             <div className="new-shipment-card">
               <div className="new-shipment-header">
-                <h1>Create Shipment</h1>
+                <h1>{editingShipment ? 'Edit Shipment' : 'Create Shipment'}</h1>
               </div>
 
               {/* Progress Steps */}
               <div className="progress-steps">
-                {steps.map((step, index) => (
+                {STEPS.map((step, index) => (
                   <div 
                     key={index} 
                     className={`step ${index + 1 === activeStep ? 'active' : ''} ${index + 1 < activeStep ? 'completed' : ''}`}
@@ -455,7 +626,7 @@ const NewShipments = () => {
                 <div className="progress-bar">
                   <div 
                     className="progress-fill" 
-                    style={{ width: `${((activeStep - 1) / (steps.length - 1)) * 100}%` }}
+                    style={{ width: `${((activeStep - 1) / (STEPS.length - 1)) * 100}%` }}
                   ></div>
                 </div>
               </div>
@@ -464,12 +635,12 @@ const NewShipments = () => {
               <div className="step-content">
                 {activeStep === 1 && (
                   <div className="shipment-type-selection">
-                    <h2>What type of Shipment would you like to create?</h2>
+                    <h2>What type of Shipment would you like to {editingShipment ? 'edit' : 'create'}?</h2>
                     {validationErrors.shipmentType && (
                       <div className="validation-error">{validationErrors.shipmentType}</div>
                     )}
                     <div className="shipment-type-grid">
-                      {shipmentTypes.map((type, index) => (
+                      {SHIPMENT_TYPES.map((type, index) => (
                         <div 
                           key={index} 
                           className={`shipment-type-card ${shipmentType === type ? 'selected' : ''}`}
@@ -625,6 +796,30 @@ const NewShipments = () => {
                         {validationErrors.hblNo && <span className="field-error">{validationErrors.hblNo}</span>}
                       </div>
                       <div className="form-group">
+                        <label>Job No. <span className="required">*</span></label>
+                        <select 
+                          name="jobNo"
+                          value={formData.jobNo}
+                          onChange={(e) => {
+                            handleInputChange(e);
+                            handleJobSelect(e.target.value);
+                          }}
+                          className={validationErrors.jobNo ? 'error' : ''}
+                        >
+                          <option value="">Select a Job</option>
+                          {isLoadingJobs ? (
+                            <option value="" disabled>Loading jobs...</option>
+                          ) : (
+                            jobs.map((job) => (
+                              <option key={job.id} value={job.job_no}>
+                                {job.job_no} - {job.client}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                        {validationErrors.jobNo && <span className="field-error">{validationErrors.jobNo}</span>}
+                      </div>
+                      <div className="form-group">
                         <label>ETD <span className="required">*</span></label>
                         <input 
                           type="datetime-local" 
@@ -750,7 +945,7 @@ const NewShipments = () => {
                           <span className="label">PDF:</span>
                           <span className="value">{formData.pof}</span>
                         </div>
-                        <div className="booking-info-row">
+                                                <div className="booking-info-row">
                           <span className="label">Carrier:</span>
                           <span className="value">{formData.carrier}</span>
                           <span className="label">Vessel Name:</span>
@@ -779,6 +974,12 @@ const NewShipments = () => {
                           <span className="value">{formData.freight}</span>
                           <span className="label">Gross Weight:</span>
                           <span className="value">{formData.grossWeight}</span>
+                        </div>
+                        <div className="booking-info-row">
+                          <span className="label">Job No:</span>
+                          <span className="value">{formData.jobNo}</span>
+                          <span className="label">HBL No:</span>
+                          <span className="value">{formData.hblNo}</span>
                         </div>
                         <div className="booking-info-row">
                           <span className="label">Description:</span>
@@ -851,15 +1052,18 @@ const NewShipments = () => {
                     </div>
 
                     <div className="confirmation-prompt">
-                      <p>Are you sure you want to create the shipment?</p>
+                      <p>Are you sure you want to {editingShipment ? 'update' : 'create'} the shipment?</p>
                       <div className="confirmation-buttons">
                         <button className="cancel-btn" onClick={handleCancel}>Cancel</button>
-                        <button className="confirm-btn" onClick={handleConfirmShipment}>OK</button>
+                        <button className="confirm-btn" onClick={handleConfirmShipment}>
+                          {editingShipment ? 'Update' : 'Create'}
+                        </button>
                       </div>
                     </div>
                   </div>
                 )}
               </div>
+              
 
               {/* Navigation Buttons */}
               <div className="navigation-buttons">
@@ -872,14 +1076,14 @@ const NewShipments = () => {
                       Previous
                     </button>
                   )}
-                  {activeStep < steps.length && (
+                  {activeStep < STEPS.length && (
                     <button className="next-button" onClick={handleNext}>
                       Next
                     </button>
                   )}
-                  {activeStep === steps.length && (
+                  {activeStep === STEPS.length && (
                     <button className="confirm-button" onClick={handleConfirmShipment}>
-                      Confirm & Create Shipment
+                      {editingShipment ? 'Update Shipment' : 'Confirm & Create Shipment'}
                     </button>
                   )}
                 </div>
@@ -947,7 +1151,7 @@ const NewShipments = () => {
                           onChange={handleOrgInputChange}
                           className="transparent-input"
                         >
-                          {categories.map((category, index) => (
+                          {CATEGORIES.map((category, index) => (
                             <option key={index} value={category}>{category}</option>
                           ))}
                         </select>
@@ -1061,6 +1265,35 @@ const NewShipments = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="modal-overlay">
+          <div className="modal-content delete-modal">
+            <div className="modal-header">
+              <h2>Confirm Delete</h2>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete shipment #{shipmentToDelete?.shipmentNo}?</p>
+              <p>This action cannot be undone.</p>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="cancel-button"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="delete-confirm-button"
+                onClick={handleDeleteShipment}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

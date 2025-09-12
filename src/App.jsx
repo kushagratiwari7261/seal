@@ -5,16 +5,20 @@ import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import StatCard from './components/StatCard'
 import ActiveJob from './components/ActiveJob'
-import ActivityTable from './components/ActivityTable'
 import CustomerPage from './components/CustomerPage'
 import Login from './components/Login'
 import './App.css'
 import NewShipments from './components/NewShipments'
+import DSRPage from './components/DSRPage' // Import the new DSR component
+import { supabase } from './lib/supabaseClient';
 
 function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [statsData, setStatsData] = useState([])
+  const [dashboardJobsData, setDashboardJobsData] = useState([])
+  const [dashboardShipmentsData, setDashboardShipmentsData] = useState([])
   const navigate = useNavigate()
 
   // Check if user is authenticated on component mount
@@ -40,6 +44,147 @@ function App() {
     setIsLoading(false)
   }, [navigate])
 
+  // Fetch data when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchDashboardData()
+    }
+  }, [isAuthenticated])
+
+  // Fetch all dashboard data
+  const fetchDashboardData = async () => {
+    try {
+      await Promise.all([
+        fetchStatsData(),
+        fetchJobsData(),
+        fetchShipmentsData()
+      ])
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+    }
+  }
+
+  // Fetch stats data from Supabase
+  const fetchStatsData = async () => {
+    try {
+      // Get total shipments count
+      const { count: totalShipments, error: shipmentsError } = await supabase
+        .from('shipments')
+        .select('*', { count: 'exact', head: true })
+      
+      // Get jobs count
+      const { count: jobsCount, error: jobsError } = await supabase
+        .from('jobs')
+        .select('*', { count: 'exact', head: true })
+      
+      // Get invoices count (assuming you have an invoices table)
+      const { count: invoicesCount, error: invoicesError } = await supabase
+        .from('invoices')
+        .select('*', { count: 'exact', head: true })
+      
+      // Get messages count (assuming you have a messages table)
+      const { count: messagesCount, error: messagesError } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+      
+      if (shipmentsError || jobsError || invoicesError || messagesError) {
+        console.error('Error fetching stats:', { shipmentsError, jobsError, invoicesError, messagesError })
+        // Fallback to default data
+        setStatsData([
+          { label: 'Total Shipments', value: '1,250', icon: 'blue', id: 'total-shipments', path: '/new-shipment' },
+          { label: 'Jobs', value: '320', icon: 'teal', id: 'Jobs', path: '/job-orders' },
+          { label: 'Invoices', value: '15', icon: 'yellow', id: 'Invoices', path: '/invoices' },
+          { label: 'Messages', value: '5', icon: 'red', id: 'Messages', path: '/messages' }
+        ])
+        return
+      }
+      
+      // Format numbers with commas
+      const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "0"
+      
+      setStatsData([
+        { label: 'Total Shipments', value: formatNumber(totalShipments), icon: 'blue', id: 'total-shipments', path: '/new-shipment' },
+        { label: 'Jobs', value: formatNumber(jobsCount), icon: 'teal', id: 'Jobs', path: '/job-orders' },
+        { label: 'Invoices', value: formatNumber(invoicesCount), icon: 'yellow', id: 'Invoices', path: '/invoices' },
+        { label: 'Messages', value: formatNumber(messagesCount), icon: 'red', id: 'Messages', path: '/messages' }
+      ])
+    } catch (error) {
+      console.error('Error in fetchStatsData:', error)
+    }
+  }
+
+  // Fetch jobs data from Supabase - UPDATED
+  const fetchJobsData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5)
+      
+      if (error) {
+        console.error('Error fetching jobs:', error)
+        // Fallback to sample data
+        setDashboardJobsData([
+          { id: 'JOB-001', customer: 'Acme Corp', status: 'In Progress', date: '2024-07-26' },
+          { id: 'JOB-002', customer: 'Global Imports', status: 'Completed', date: '2024-07-25' },
+          { id: 'JOB-003', customer: 'Tech Solutions', status: 'Pending', date: '2024-07-24' }
+        ])
+        return
+      }
+      
+      console.log('Jobs data from Supabase:', data); // Debug log
+      
+      // More flexible mapping to handle different column names
+      const fetchJobs = data.map(job => ({
+        id:  job.job_no || 'N/A',
+        customer: job.client || 'Unknown Customer',
+        status: job.status || 'Unknown',
+        date: job.job_date ? new Date(job.job_date).toLocaleDateString() : 'Unknown date' 
+      }))
+      
+      setDashboardJobsData(fetchJobs)
+    } catch (error) {
+      console.error('Error in fetchJobsData:', error)
+    }
+  }
+
+  // Fetch shipments data from Supabase - UPDATED
+  const fetchShipmentsData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shipments')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5)
+      
+      if (error) {
+        console.error('Error fetching shipments:', error)
+        // Fallback to sample data
+        setDashboardShipmentsData([
+          { id: 'SHIP-12345', destination: 'New York', status: 'In Transit', date: '2024-07-26' },
+          { id: 'SHIP-67890', destination: 'Los Angeles', status: 'Delivered', date: '2024-07-25' },
+          { id: 'SHIP-11223', destination: 'Chicago', status: 'Processing', date: '2024-07-24' }
+        ])
+        return
+      }
+      
+      console.log('Shipments data from Supabase:', data); // Debug log
+      
+      // More flexible mapping to handle different column names
+      const formattedData = data.map(shipment => ({
+        id: shipment.id || shipment.shipment_id || shipment.tracking_number || 'N/A',
+        destination: shipment.destination || shipment.to_address || shipment.delivery_address || 'Unknown Destination',
+        status: shipment.status || 'Unknown',
+        date: shipment.created_at ? new Date(shipment.created_at).toLocaleDateString() : 'Unknown date'
+      }))
+      
+      setDashboardShipmentsData(formattedData)
+    } catch (error) {
+      console.error('Error in fetchShipmentsData:', error)
+    }
+  }
+
   // Helper function to validate token
   const isValidToken = (token) => {
     return token !== "undefined" && 
@@ -47,29 +192,6 @@ function App() {
            token.trim() !== "" &&
            token.length > 10 // Basic validation
   }
-
-  const statsData = [
-    { label: 'Total Shipments', value: '1,250', icon: 'blue', id: 'total-shipments', path: '/new-shipment' },
-    { label: 'Jobs', value: '320', icon: 'teal', id: 'Jobs', path: '/job-orders' },
-    { label: 'Invoices', value: '15', icon: 'yellow', id: 'Invoices', path: '/invoices' },
-    { label: 'Messages', value: '5', icon: 'red', id: 'Messages', path: '/messages' }
-  ]
-
-  const activitiesData = [
-    { date: '2024-07-26', activity: 'Shipment Created', details: 'Shipment #12345 for Acme Corp.', status: 'Completed' },
-    { date: '2024-07-25', activity: 'Shipment Updated', details: '#67890 delivery date changed.', status: 'In Progress' },
-    { date: '2024-07-24', activity: 'Customer Added', details: 'New customer: Global Imports.', status: 'Completed' },
-    { date: '2024-07-23', activity: 'Report Generated', details: 'Monthly shipment report.', status: 'Generated' },
-    { date: '2024-07-22', activity: 'Task Completed', details: 'Customs documentation finalized.', status: 'Completed' }
-  ]
-
-  const ActiveJobs = [
-    { date: '2024-07-26', activity: 'Shipment Created', details: 'Shipment #12345 for Acme Corp.', status: 'Completed' },
-    { date: '2024-07-25', activity: 'Shipment Updated', details: '#67890 delivery date changed.', status: 'In Progress' },
-    { date: '2024-07-24', activity: 'Customer Added', details: 'New customer: Global Imports.', status: 'Completed' },
-    { date: '2024-07-23', activity: 'Report Generated', details: 'Monthly shipment report.', status: 'Generated' },
-    { date: '2024-07-22', activity: 'Task Completed', details: 'Customs documentation finalized.', status: 'Completed' }
-  ]
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen)
@@ -103,6 +225,66 @@ function App() {
     navigate('/login', { replace: true })
   }
 
+  // Dashboard Job Summary Component
+  const DashboardJobsSummary = ({ jobs, onViewAll }) => (
+    <div className="card">
+      <div className="card-header">
+        <h2>Recent Jobs</h2>
+        <button className="view-all-btn" onClick={onViewAll}>View All</button>
+      </div>
+      <div className="summary-content">
+        {jobs && jobs.length > 0 ? (
+          jobs.slice(0, 3).map(job => (
+            <div key={job.id} className="summary-item">
+              <div className="summary-info">
+                <span className="summary-id">{job.id}</span>
+                <span className="summary-customer">{job.customer}</span>
+              </div>
+              <div className="summary-status">
+                <span className={`status-badge ${job.status.toLowerCase().replace(' ', '-')}`}>
+                  {job.status}
+                </span>
+                <span className="summary-date">{job.date}</span>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="no-data-message">No jobs found</div>
+        )}
+      </div>
+    </div>
+  )
+
+  // Dashboard Shipments Summary Component
+  const DashboardShipmentsSummary = ({ shipments, onViewAll }) => (
+    <div className="card">
+      <div className="card-header">
+        <h2>Recent Shipments</h2>
+        <button className="view-all-btn" onClick={onViewAll}>View All</button>
+      </div>
+      <div className="summary-content">
+        {shipments && shipments.length > 0 ? (
+          shipments.slice(0, 3).map(shipment => (
+            <div key={shipment.id} className="summary-item">
+              <div className="summary-info">
+                <span className="summary-id">{shipment.id}</span>
+                <span className="summary-destination">{shipment.destination}</span>
+              </div>
+              <div className="summary-status">
+                <span className={`status-badge ${shipment.status.toLowerCase().replace(' ', '-')}`}>
+                  {shipment.status}
+                </span>
+                <span className="summary-date">{shipment.date}</span>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="no-data-message">No shipments found</div>
+        )}
+      </div>
+    </div>
+  )
+
   // Dashboard component
   const Dashboard = () => (
     <>
@@ -126,12 +308,16 @@ function App() {
         ))}
       </div>
 
-      <div className="card">
-        <ActiveJob activities={ActiveJobs} />
-      </div>
+      <div className="dashboard-summary-grid">
+        <DashboardJobsSummary 
+          jobs={dashboardJobsData} 
+          onViewAll={() => navigate('/job-orders')}
+        />
 
-      <div className="card">
-        <ActivityTable activities={activitiesData} />
+        <DashboardShipmentsSummary 
+          shipments={dashboardShipmentsData} 
+          onViewAll={() => navigate('/new-shipment')}
+        />
       </div>
     </>
   )
@@ -158,13 +344,6 @@ function App() {
     </div>
   )
 
-  const WarehousePage = () => (
-    <div className="page-container">
-      <h1>Warehouse Management</h1>
-      <p>Manage your warehouse operations and inventory.</p>
-    </div>
-  )
-
   const InvoicesPage = () => (
     <div className="page-container">
       <h1>Invoices</h1>
@@ -178,6 +357,7 @@ function App() {
       <p>View and manage all your messages here.</p>
     </div>
   )
+  
   const ProtectedRoute = ({ children }) => {
     if (!isAuthenticated) {
       return <Navigate to="/login" replace />
@@ -217,89 +397,87 @@ function App() {
             } 
           />
 
-        
-  <Route 
-    path="/dashboard" 
-    element={
-      <ProtectedRoute>
-        <Dashboard />
-      </ProtectedRoute>
-    } 
-  />
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
 
-  <Route 
-    path="/customers" 
-    element={
-      <ProtectedRoute>
-        <CustomerPage />
-      </ProtectedRoute>
-    } 
-  />
+          <Route 
+            path="/customers" 
+            element={
+              <ProtectedRoute>
+                <CustomerPage />
+              </ProtectedRoute>
+            } 
+          />
 
-  <Route 
-    path="/new-shipment" 
-    element={
-      <ProtectedRoute>
-        <NewShipments />
-      </ProtectedRoute>
-    } 
-  />
+          <Route 
+            path="/new-shipment" 
+            element={
+              <ProtectedRoute>
+                <NewShipments />
+              </ProtectedRoute>
+            } 
+          />
 
-  <Route 
-    path="/reports" 
-    element={
-      <ProtectedRoute>
-        <ReportsPage />
-      </ProtectedRoute>
-    } 
-  />
+          <Route 
+            path="/reports" 
+            element={
+              <ProtectedRoute>
+                <ReportsPage />
+              </ProtectedRoute>
+            } 
+          />
 
-  <Route 
-    path="/settings" 
-    element={
-      <ProtectedRoute>
-        <SettingsPage />
-      </ProtectedRoute>
-    } 
-  />
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            } 
+          />
 
-  <Route 
-    path="/warehouse" 
-    element={
-      <ProtectedRoute>
-        <WarehousePage />
-      </ProtectedRoute>
-    } 
-  />
+          <Route 
+            path="/dsr" 
+            element={
+              <ProtectedRoute>
+                <DSRPage />
+              </ProtectedRoute>
+            } 
+          />
 
-  <Route 
-    path="/job-orders" 
-    element={
-      <ProtectedRoute>
-        <ActiveJob activities={ActiveJobs} />
-      </ProtectedRoute>
-    } 
-  />
+          <Route 
+            path="/job-orders" 
+            element={
+              <ProtectedRoute>
+                <ActiveJob />
+              </ProtectedRoute>
+            } 
+          />
 
-  <Route 
-    path="/invoices" 
-    element={
-      <ProtectedRoute>
-        <InvoicesPage />
-      </ProtectedRoute>
-    } 
-  />
+          <Route 
+            path="/invoices" 
+            element={
+              <ProtectedRoute>
+                <InvoicesPage />
+              </ProtectedRoute>
+            } 
+          />
 
-  <Route 
-    path="/messages" 
-    element={
-      <ProtectedRoute>
-        <MessagesPage />
-      </ProtectedRoute>
-    } 
-  />
-</Routes>
-
+          <Route 
+            path="/messages" 
+            element={
+              <ProtectedRoute>
+                <MessagesPage />
+              </ProtectedRoute>
+            } 
+          />
+        </Routes>
       </main>
     </div>
   )

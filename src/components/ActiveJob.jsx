@@ -1,182 +1,250 @@
 // src/components/ActiveJob.jsx
 import './ActivityTable.css';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
-const ActiveJob = ({ activities }) => {
+// Constants for better maintainability
+const JOB_TYPES = ['AIR FREIGHT', 'SEA FREIGHT',  'TRANSPORT', 'OTHERS'];
+const TRADE_DIRECTIONS = ['EXPORT', 'IMPORT'];
+const STEPS = ['Create Job', 'Trade Direction', 'Port Details', 'Summary'];
+const CATEGORIES = [
+  'AGENT', 'ARLINE', 'BANK', 'BIKE', 'BIOKER', 'BUYER', 
+  'CAREER', 'CAREER AGENT'
+];
+
+// Function to generate unique job numbers
+const generateJobNumber = () => {
+  const timestamp = new Date().getTime().toString().slice(-6);
+  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  return `${timestamp}${random}`;
+};
+
+// Initial form data
+const INITIAL_FORM_DATA = {
+  branch: 'CHENNAI (MAA)',
+  department: 'FCL EXPORT',
+  jobDate: new Date().toISOString().split('T')[0], // Current date as default
+  client: 'AMAZON PVT LMD',
+  shipper: 'AMAZON PVT LMD',
+  consignee: 'FRESA TECHNOLOGIES FZE',
+  address: 'PRIMARY, OFFICE, SHIPPING/',
+  por: 'INMAA-CHENNAI (EX',
+  poi: 'INMAA-CHENNAI (EX',
+  pod: 'AEDXB-DUBAI/UNITED ARAB',
+  pof: 'AEDXB-DUBAI/UNITED ARAB',
+  jobNo: generateJobNumber(), // Auto-generated job number
+  etd: '',
+  eta: '',
+  incoterms: 'Cost and Freight-(CFR)',
+  serviceType: 'FCL',
+  freight: 'Prepaid',
+  payableAt: 'CHENNAI (EX MADRAS)',
+  dispatchAt: 'CHENNAI (EX MADRAS)',
+  
+  // Sea freight fields
+  pol: 'CHENNAI (EX MADRAS), INDIA',
+  pdf: 'DUBAI, UAE',
+  carrier: 'SEAWAYS SHIPPING AND LOGISTICS LIMITED',
+  vesselNameSummary: 'TIGER SEA / 774',
+  noOfRes: '$000',
+  volume: '$000',
+  grossWeight: '$00000',
+  description: 'A PACK OF FURNITURES',
+  remarks: '',
+  
+  // Sea freight step 2 fields
+  exporter: '',
+  importer: '',
+  invoiceNo: '',
+  invoiceDate: '',
+  stuffingDate: '',
+  hoDate: '',
+  terms: '',
+  noOfCartoons: '',
+  sbNo: '',
+  sbDate: '',
+  destination: '',
+  commodity: '',
+  fob: '',
+  grWeight: '',
+  netWeight: '',
+  railOutDate: '',
+  containerNo: '',
+  noOfCntr: '',
+  sLine: '',
+  mblNo: '',
+  mblDate: '',
+  hblNo: '',
+  hblDt: '',
+  vessel: '',
+  voy: '',
+  sob: '',
+  ac: '',
+  billNo: '',
+  billDate: '',
+  ccPort: '',
+  
+  // Air freight fields
+  notify_party: '',
+  airport_of_departure: '',
+  airport_of_destination: '',
+  no_of_packages: '',
+  dimension_cms: '',
+  chargeable_weight: '',
+  client_no: '',
+  name_of_airline: '',
+  awb: '',
+  flight_from: '',
+  flight_to: '',
+  flight_eta: '',
+  
+  // Transport fields
+  port: '',
+  trailer_no: '',
+  size: '',
+  lrn_no: '',
+  from: '',
+  to: '',
+  shipper_name: '',
+  party_name: '',
+  factory_reporting_date: '',
+  factory_reporting_out: '',
+  offloading_date: '',
+  days_of_detention: '',
+  transporter: '',
+  vehicle_buy_amount: '',
+  vehicle_billing_amount: '',
+  movement: '',
+  driver_name: '',
+  driver_mobile_no: '',
+  bill_no: '',
+  bill_date: '',
+  amount: ''
+};
+
+const INITIAL_ORG_FORM_DATA = {
+  name: 'KRYTON LOGISTICS',
+  recordStatus: 'Active',
+  salesPerson: '',
+  category: 'AGENT',
+  branch: 'CHENNAI',
+  contactPerson: 'ARUNA',
+  doorNo: '',
+  buildingName: '',
+  street: '',
+  area: '',
+  city: '',
+  state: ''
+};
+
+const ActiveJob = () => {
   const navigate = useNavigate();
   const tableContainerRef = useRef(null);
   const [maxHeight, setMaxHeight] = useState('auto');
   const [showJobForm, setShowJobForm] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
   const [jobType, setJobType] = useState('');
-  const [tradeDirection, setTradeDirection] = useState(''); // 'export' or 'import'
+  const [tradeDirection, setTradeDirection] = useState('');
   const [showOrgModal, setShowOrgModal] = useState(false);
-  const [amount, setAmount] = useState("27.22");
   const [validationErrors, setValidationErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [jobs, setJobs] = useState([]);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    branch: 'CHENNAI (MAA)',
-    department: 'FCL EXPORT',
-    jobDate: '2019-06-11',
-    client: 'AMAZON PVT LMD',
-    shipper: 'AMAZON PVT LMD',
-    consignee: 'FRESA TECHNOLOGIES FZE',
-    address: 'PRIMARY, OFFICE, SHIPPING/',
-    por: 'INMAA-CHENNAI (EX',
-    poi: 'INMAA-CHENNAI (EX',
-    pod: 'AEDXB-DUBAI/UNITED ARAB',
-    pof: 'AEDXB-DUBAI/UNITED ARAB',
-    jobNo: '43544489644',
-    etd: '2019-06-11T08:13',
-    eta: '2019-06-30T08:13',
-    incoterms: 'Cost and Freight-(CFR)',
-    serviceType: 'FCL',
-    freight: 'Prepaid',
-    payableAt: 'CHENNAI (EX MADRAS)',
-    dispatchAt: 'CHENNAI (EX MADRAS)',
-    
-    // Additional fields for summary
-    
-    pol: 'CHENNAI (EX MADRAS), INDIA',
-    pdf: 'DUBAI, UAE',
-    carrier: 'SEAWAYS SHIPPING AND LOGISTICS LIMITED',
-    vesselNameSummary: 'TIGER SEA / 774',
-    noOfRes: '$000',
-    volume: '$000',
-    grossWeight: '$00000',
-    description: 'A PACK OF FURNITURES',
-    remarks: '',
-    
-    // New fields for step 2
-    exporter: '',
-    importer: '',
-    invoiceNo: '',
-    invoiceDate: '',
-    stuffingDate: '',
-    hoDate: '',
-    terms: '',
-    noOfCartoons: '',
-    sbNo: '',
-    sbDate: '',
-    destination: '',
-    commodity: '',
-    fob: '',
-    grWeight: '',
-    netWeight: '',
-    railOutDate: '',
-    containerNo: '',
-    noOfCntr: '',
-    sLine: '',
-    mblNo: '',
-    mblDate: '',
-    hblNo: '',
-    hblDt: '',
-    vessel: '',
-    voy: '',
-    sob: '',
-    ac: '',
-    billNo: '',
-    billDate: '',
-    ccPort: ''
-  });
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
+  const [orgFormData, setOrgFormData] = useState(INITIAL_ORG_FORM_DATA);
+  const [editingJob, setEditingJob] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState(null);
 
-  const [orgFormData, setOrgFormData] = useState({
-    name: 'KRYTON LOGISTICS',
-    recordStatus: 'Active',
-    salesPerson: '',
-    category: 'AGENT',
-    branch: 'CHENNAI',
-    contactPerson: 'ARUNA',
-    doorNo: '',
-    buildingName: '',
-    street: '',
-    area: '',
-    city: '',
-    state: ''
-  });
-
-  const steps = [
-    'Create Job',
-    'Trade Direction',
-    'Port Details',
-    'Summary'
-  ];
-
-  const jobTypes = [
-    'AIR FREIGHT',
-    'SEA FREIGHT',
-    'LAND',
-    'TRANSPORT',
-    'OTHERS',
-  ];
-
-  const tradeDirections = [
-    'EXPORT',
-    'IMPORT'
-  ];
-
-  const categories = [
-    'AGENT', 'ARLINE', 'BANK', 'BIKE', 'BIOKER', 'BUYER', 
-    'CAREER', 'CAREER AGENT'
-  ];
-
-  // Define required fields for each step
-  const requiredFields = {
-    1: ['jobType'],
-    2: ['tradeDirection'],
-    3: ['jobNo', 'exporter', 'importer', 'invoiceNo', 'invoiceDate', 'stuffingDate', 
-        'hoDate', 'terms', 'consignee', 'noOfCartoons', 'sbNo', 'sbDate',
-        'pol', 'pod', 'destination', 'commodity', 'fob', 'grWeight', 
-        'netWeight', 'railOutDate', 'containerNo', 'noOfCntr', 'volume',
-        'sLine', 'mblNo', 'mblDate', 'hblNo', 'hblDt', 'vessel', 'voy',
-        'etd', 'sob', 'eta', 'ac', 'billNo', 'billDate', 'ccPort'],
-    4: [] // No required fields for summary
-  };
+  // Memoize required fields based on job type
+  const requiredFields = useMemo(() => {
+    if (jobType === 'AIR FREIGHT') {
+      return {
+        1: ['jobType'],
+        2: ['tradeDirection'],
+        3: ['jobNo', 'shipper', 'consignee', 'notify_party', 'airport_of_departure', 
+            'airport_of_destination', 'no_of_packages', 'grossWeight', 'dimension_cms',
+            'chargeable_weight', 'client_no', 'name_of_airline', 'awb', 'flight_from',
+            'flight_to', 'flight_eta', 'invoiceNo', 'invoiceDate'],
+        4: []
+      };
+    } else if (jobType === 'TRANSPORT') {
+      return {
+        1: ['jobType'],
+        2: ['tradeDirection'],
+        3: ['jobNo', 'port', 'trailer_no', 'containerNo', 'size', 'lrn_no', 'from', 'to',
+            'shipper_name', 'party_name', 'factory_reporting_date', 'factory_reporting_out',
+            'offloading_date', 'days_of_detention', 'transporter', 'vehicle_buy_amount',
+            'vehicle_billing_amount', 'movement', 'driver_name', 'driver_mobile_no',
+            'bill_no', 'bill_date', 'amount'],
+        4: []
+      };
+    } else {
+      return {
+        1: ['jobType'],
+        2: ['tradeDirection'],
+        3: ['jobNo', 'exporter', 'importer', 'invoiceNo', 'invoiceDate', 'stuffingDate', 
+            'hoDate', 'terms', 'consignee', 'noOfCartoons', 'sbNo', 'sbDate',
+            'pol', 'pod', 'destination', 'commodity', 'fob', 'grWeight', 
+            'netWeight', 'railOutDate', 'containerNo', 'noOfCntr', 'volume',
+            'sLine', 'mblNo', 'mblDate', 'hblNo', 'hblDt', 'vessel', 'voy',
+            'etd', 'sob', 'eta', 'ac', 'billNo', 'billDate', 'ccPort'],
+        4: []
+      };
+    }
+  }, [jobType]);
 
   // Fetch jobs from Supabase
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('status', 'active')
-        
+        .order('created_at', { ascending: false });
       
       if (error) throw error;
       
-      // Store the fetched jobs in state
-      setJobs(data || []);
+      // Map database fields to display fields
+      const mappedJobs = (data || []).map(job => ({
+        id: job.id,
+        jobNo: job.job_no,
+        client: job.client,
+        pol: job.pol,
+        pod: job.pod,
+        createdAt: job.created_at ? new Date(job.created_at).toLocaleDateString() : '',
+        updatedAt: job.updated_at ? new Date(job.updated_at).toLocaleDateString() : '',
+        eta: job.flight_eta ? new Date(job.flight_eta).toLocaleDateString() : job.eta ? new Date(job.eta).toLocaleDateString() : '',
+        jobType: job.job_type,
+        tradeDirection: job.trade_direction,
+        // Add all other fields for editing
+        ...job
+      }));
+      
+      setJobs(mappedJobs);
     } catch (error) {
       setError(error.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  // Call this in useEffect to load jobs on component mount
-  useEffect(() => {
-    fetchJobs();
   }, []);
 
-  // Adjust max height
+  // Load jobs on component mount
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
+
+  // Adjust max height when jobs change
   useEffect(() => {
     if (tableContainerRef.current) {
       const tableHeight = tableContainerRef.current.scrollHeight;
-      const calculatedMaxHeight = Math.min(tableHeight, 400); // 400px max height
+      const calculatedMaxHeight = Math.min(tableHeight, 400);
       setMaxHeight(`${calculatedMaxHeight}px`);
     }
-  }, [jobs, activities]);
-
-  const handleAddJob = () => {
-    setShowJobForm(true);
-  };
+  }, [jobs]);
 
   // Validate current step before proceeding
   const validateStep = (step) => {
@@ -184,56 +252,63 @@ const ActiveJob = ({ activities }) => {
     const fieldsToValidate = requiredFields[step];
     
     if (step === 1) {
-      if (!jobType) {
-        errors.jobType = 'Job type is required';
-      }
+      if (!jobType) errors.jobType = 'Job type is required';
     } else if (step === 2) {
-      if (!tradeDirection) {
-        errors.tradeDirection = 'Trade direction is required';
-      }
+      if (!tradeDirection) errors.tradeDirection = 'Trade direction is required';
     } else {
       fieldsToValidate.forEach(field => {
-        // Only validate exporter/importer based on trade direction
-        if (field === 'exporter' && tradeDirection === 'EXPORT' && 
-            (!formData[field] || formData[field].toString().trim() === '')) {
-          errors[field] = `${field} is required`;
-        } else if (field === 'importer' && tradeDirection === 'IMPORT' && 
-            (!formData[field] || formData[field].toString().trim() === '')) {
-          errors[field] = `${field} is required`;
-        } else if (field !== 'exporter' && field !== 'importer' && 
-            (!formData[field] || formData[field].toString().trim() === '')) {
-          errors[field] = `${field} is required`;
+        if (jobType === 'AIR FREIGHT') {
+          if (!formData[field] || formData[field].toString().trim() === '') {
+            errors[field] = `${field.replace(/_/g, ' ')} is required`;
+          }
+        } else if (jobType === 'TRANSPORT') {
+          if (!formData[field] || formData[field].toString().trim() === '') {
+            errors[field] = `${field.replace(/_/g, ' ')} is required`;
+          }
+        } else {
+          if (field === 'exporter' && tradeDirection === 'EXPORT' && 
+              (!formData[field] || formData[field].toString().trim() === '')) {
+            errors[field] = `${field} is required`;
+          } else if (field === 'importer' && tradeDirection === 'IMPORT' && 
+              (!formData[field] || formData[field].toString().trim() === '')) {
+            errors[field] = `${field} is required`;
+          } else if (field !== 'exporter' && field !== 'importer' && 
+              (!formData[field] || formData[field].toString().trim() === '')) {
+            errors[field] = `${field} is required`;
+          }
         }
       });
     }
     
     setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
+    return true;
   };
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (validateStep(activeStep)) {
-      if (activeStep < steps.length) {
+      if (activeStep < STEPS.length) {
         setActiveStep(activeStep + 1);
       }
     }
-  };
+  }, [activeStep, jobType, tradeDirection, formData, requiredFields]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (activeStep > 1) {
       setActiveStep(activeStep - 1);
     }
-  };
+  }, [activeStep]);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setActiveStep(1);
     setJobType('');
     setTradeDirection('');
     setShowJobForm(false);
+    setEditingJob(null);
     setValidationErrors({});
-  };
+    setFormData({...INITIAL_FORM_DATA, jobNo: generateJobNumber()});
+  }, []);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -243,46 +318,46 @@ const ActiveJob = ({ activities }) => {
     // Clear validation error for this field
     if (validationErrors[name]) {
       setValidationErrors(prev => {
-        const newErrors = {...prev};
+        const newErrors = { ...prev };
         delete newErrors[name];
         return newErrors;
       });
     }
-  };
+  }, [validationErrors]);
 
-  const handleOrgInputChange = (e) => {
+  const handleOrgInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setOrgFormData(prev => ({
       ...prev,
       [name]: value
     }));
-  };
+  }, []);
 
-  const handleJobTypeSelect = (type) => {
+  const handleJobTypeSelect = useCallback((type) => {
     setJobType(type);
     // Clear job type validation error if any
     if (validationErrors.jobType) {
       setValidationErrors(prev => {
-        const newErrors = {...prev};
+        const newErrors = { ...prev };
         delete newErrors.jobType;
         return newErrors;
       });
     }
-  };
+  }, [validationErrors]);
 
-  const handleTradeDirectionSelect = (direction) => {
+  const handleTradeDirectionSelect = useCallback((direction) => {
     setTradeDirection(direction);
     // Clear trade direction validation error if any
     if (validationErrors.tradeDirection) {
       setValidationErrors(prev => {
-        const newErrors = {...prev};
+        const newErrors = { ...prev };
         delete newErrors.tradeDirection;
         return newErrors;
       });
     }
-  };
+  }, [validationErrors]);
 
-  const handleCreateOrganization = async () => {
+  const handleCreateOrganization = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -301,7 +376,7 @@ const ActiveJob = ({ activities }) => {
       // Clear any client validation error
       if (validationErrors.client) {
         setValidationErrors(prev => {
-          const newErrors = {...prev};
+          const newErrors = { ...prev };
           delete newErrors.client;
           return newErrors;
         });
@@ -314,88 +389,438 @@ const ActiveJob = ({ activities }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [orgFormData, validationErrors]);
 
-  const handleCreateJob = async () => {
+  const handleCreateJob = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Prepare job data for insertion
+      // Function to convert empty strings to null for numeric fields
+      const cleanNumericValue = (value) => {
+        if (value === "" || value === null || value === undefined) {
+          return null;
+        }
+        // Convert string numbers to actual numbers
+        if (typeof value === 'string' && value.trim() !== "") {
+          return Number(value);
+        }
+        return value;
+      };
+
+      // Prepare job data for insertion with proper value handling
       const jobData = {
-        ...formData,
+        // Map all your fields to match database columns
+        job_no: formData.jobNo,
+        client: formData.client,
+        shipper: formData.shipper,
+        consignee: formData.consignee,
+        
+        // Handle numeric fields
+        no_of_packages: cleanNumericValue(formData.no_of_packages),
+        gross_weight: cleanNumericValue(formData.grossWeight),
+        chargeable_weight: cleanNumericValue(formData.chargeable_weight),
+        no_of_cartoons: cleanNumericValue(formData.noOfCartoons),
+        gr_weight: cleanNumericValue(formData.grWeight),
+        net_weight: cleanNumericValue(formData.netWeight),
+        no_of_cntr: cleanNumericValue(formData.noOfCntr),
+        volume: cleanNumericValue(formData.volume),
+        fob: cleanNumericValue(formData.fob),
+        
+        // Handle date fields
+        job_date: formData.jobDate ? new Date(formData.jobDate).toISOString() : null,
+        etd: formData.etd ? new Date(formData.etd).toISOString() : null,
+        eta: formData.eta ? new Date(formData.eta).toISOString() : null,
+        flight_eta: formData.flight_eta ? new Date(formData.flight_eta).toISOString() : null,
+        invoice_date: formData.invoiceDate ? new Date(formData.invoiceDate).toISOString() : null,
+        stuffing_date: formData.stuffingDate ? new Date(formData.stuffingDate).toISOString() : null,
+        ho_date: formData.hoDate ? new Date(formData.hoDate).toISOString() : null,
+        sb_date: formData.sbDate ? new Date(formData.sbDate).toISOString() : null,
+        mbl_date: formData.mblDate ? new Date(formData.mblDate).toISOString() : null,
+        hbl_dt: formData.hblDt ? new Date(formData.hblDt).toISOString() : null,
+        rail_out_date: formData.railOutDate ? new Date(formData.railOutDate).toISOString() : null,
+        bill_date: formData.billDate ? new Date(formData.billDate).toISOString() : null,
+        
+        // Text fields
+        pol: formData.pol || null,
+        pod: formData.pod || null,
+        destination: formData.destination || null,
+        commodity: formData.commodity || null,
+        terms: formData.terms || null,
+        sb_no: formData.sbNo || null,
+        container_no: formData.containerNo || null,
+        s_line: formData.sLine || null,
+        mbl_no: formData.mblNo || null,
+        hbl_no: formData.hblNo || null,
+        vessel: formData.vessel || null,
+        voy: formData.voy || null,
+        sob: formData.sob || null,
+        ac: formData.ac || null,
+        bill_no: formData.billNo || null,
+        cc_port: formData.ccPort || null,
+        notify_party: formData.notify_party || null,
+        airport_of_departure: formData.airport_of_departure || null,
+        airport_of_destination: formData.airport_of_destination || null,
+        dimension_cms: formData.dimension_cms || null,
+        client_no: formData.client_no || null,
+        name_of_airline: formData.name_of_airline || null,
+        awb: formData.awb || null,
+        flight_from: formData.flight_from || null,
+        flight_to: formData.flight_to || null,
+        
+        // Transport fields
+        port: formData.port || null,
+        trailer_no: formData.trailer_no || null,
+        size: formData.size || null,
+        lrn_no: formData.lrn_no || null,
+        from: formData.from || null,
+        to: formData.to || null,
+        shipper_name: formData.shipper_name || null,
+        party_name: formData.party_name || null,
+        factory_reporting_date: formData.factory_reporting_date ? new Date(formData.factory_reporting_date).toISOString() : null,
+        factory_reporting_out: formData.factory_reporting_out ? new Date(formData.factory_reporting_out).toISOString() : null,
+        offloading_date: formData.offloading_date ? new Date(formData.offloading_date).toISOString() : null,
+        days_of_detention: cleanNumericValue(formData.days_of_detention),
+        transporter: formData.transporter || null,
+        vehicle_buy_amount: cleanNumericValue(formData.vehicle_buy_amount),
+        vehicle_billing_amount: cleanNumericValue(formData.vehicle_billing_amount),
+        movement: formData.movement || null,
+        driver_name: formData.driver_name || null,
+        driver_mobile_no: formData.driver_mobile_no || null,
+        bill_no: formData.bill_no || null,
+        bill_date: formData.bill_date ? new Date(formData.bill_date).toISOString() : null,
+        amount: cleanNumericValue(formData.amount),
+        
         job_type: jobType,
         trade_direction: tradeDirection,
-        // Convert date strings to proper format if needed
-        job_date: new Date(formData.jobDate).toISOString(),
-        etd: new Date(formData.etd).toISOString(),
-        eta: new Date(formData.eta).toISOString(),
-        // Add other date conversions as needed
+        status: 'active',
+        updated_at: new Date().toISOString()
       };
       
-      const { data, error } = await supabase
-        .from('jobs')
-        .insert([jobData])
-        .select();
+      let result;
+      if (editingJob) {
+        // Update existing job
+        const { data: updatedJob, error } = await supabase
+          .from('jobs')
+          .update(jobData)
+          .eq('id', editingJob.id)
+          .select();
+        
+        if (error) throw error;
+        result = updatedJob;
+      } else {
+        // Create new job
+        const { data: newJob, error } = await supabase
+          .from('jobs')
+          .insert([jobData])
+          .select();
+        
+        if (error) throw error;
+        result = newJob;
+      }
       
-      if (error) throw error;
+      handleCancel();
+      setSuccess(editingJob ? 'Job updated successfully!' : 'Job created successfully!');
       
-      // Reset form and show success
-      setActiveStep(1);
-      setJobType('');
-      setTradeDirection('');
-      setShowJobForm(false);
-      setValidationErrors({});
-      setSuccess('Job created successfully!');
-      
-      // Refresh the jobs list
+      // Refresh the jobs list immediately after creating/updating a job
       fetchJobs();
     } catch (error) {
+      console.error('Error saving job:', error);
       setError(error.message);
     } finally {
       setLoading(false);
     }
-  };
-  // Helper function to conditionally render fields based on trade direction
-const renderConditionalField = (fieldName, condition) => {
-  return condition ? (
-    <div className="form-group">
-      <label>{fieldName} <span className="required">*</span></label>
-      <input 
-        type="text" 
-        name={fieldName.toLowerCase().replace(' ', '')}
-        value={formData[fieldName.toLowerCase().replace(' ', '')]}
-        onChange={handleInputChange}
-        className={validationErrors[fieldName.toLowerCase().replace(' ', '')] ? 'error' : ''}
-      />
-      {validationErrors[fieldName.toLowerCase().replace(' ', '')] && 
-        <span className="field-error">{validationErrors[fieldName.toLowerCase().replace(' ', '')]}</span>
-      }
-    </div>
-  ) : null;
-};
+  }, [formData, jobType, tradeDirection, editingJob, handleCancel, fetchJobs]);
 
-  // Sample job data
-  const sampleJobs = [
-    {
-      jobNo: "CMAASE190318",
-      client: "FRESA DEMO DUBAI LLC",
-      pol: "INMAA",
-      pod: "AEDXB",
-      edt: "2024-08-30",
-      eta: "2024-09-05"
-    },
-    {
-      jobNo: "CMAASE190157",
-      client: "AMAZON PVT LMD",
-      pol: "INMAA",
-      pod: "AEDXB",
-      edt: "2024-08-28",
-      eta: "2024-09-02"
+  // Handle edit job
+  const handleEditJob = useCallback((job) => {
+    setEditingJob(job);
+    setJobType(job.job_type);
+    setTradeDirection(job.trade_direction);
+    
+    // Map database fields to form fields
+    const formDataFromJob = {
+      jobNo: job.job_no,
+      client: job.client,
+      shipper: job.shipper,
+      consignee: job.consignee,
+      no_of_packages: job.no_of_packages,
+      grossWeight: job.gross_weight,
+      chargeable_weight: job.chargeable_weight,
+      noOfCartoons: job.no_of_cartoons,
+      grWeight: job.gr_weight,
+      netWeight: job.net_weight,
+      noOfCntr: job.no_of_cntr,
+      volume: job.volume,
+      fob: job.fob,
+      jobDate: job.job_date ? new Date(job.job_date).toISOString().split('T')[0] : '',
+      etd: job.etd ? new Date(job.etd).toISOString().split('T')[0] : '',
+      eta: job.eta ? new Date(job.eta).toISOString().split('T')[0] : '',
+      flight_eta: job.flight_eta ? new Date(job.flight_eta).toISOString().split('T')[0] : '',
+      invoiceDate: job.invoice_date ? new Date(job.invoice_date).toISOString().split('T')[0] : '',
+      stuffingDate: job.stuffing_date ? new Date(job.stuffing_date).toISOString().split('T')[0] : '',
+      hoDate: job.ho_date ? new Date(job.ho_date).toISOString().split('T')[0] : '',
+      sbDate: job.sb_date ? new Date(job.sb_date).toISOString().split('T')[0] : '',
+      mblDate: job.mbl_date ? new Date(job.mbl_date).toISOString().split('T')[0] : '',
+      hblDt: job.hbl_dt ? new Date(job.hbl_dt).toISOString().split('T')[0] : '',
+      railOutDate: job.rail_out_date ? new Date(job.rail_out_date).toISOString().split('T')[0] : '',
+      billDate: job.bill_date ? new Date(job.bill_date).toISOString().split('T')[0] : '',
+      pol: job.pol || '',
+      pod: job.pod || '',
+      destination: job.destination || '',
+      commodity: job.commodity || '',
+      terms: job.terms || '',
+      sbNo: job.sb_no || '',
+      containerNo: job.container_no || '',
+      sLine: job.s_line || '',
+      mblNo: job.mbl_no || '',
+      hblNo: job.hbl_no || '',
+      vessel: job.vessel || '',
+      voy: job.voy || '',
+      sob: job.sob || '',
+      ac: job.ac || '',
+      billNo: job.bill_no || '',
+      ccPort: job.cc_port || '',
+      notify_party: job.notify_party || '',
+      airport_of_departure: job.airport_of_departure || '',
+      airport_of_destination: job.airport_of_destination || '',
+      dimension_cms: job.dimension_cms || '',
+      client_no: job.client_no || '',
+      name_of_airline: job.name_of_airline || '',
+      awb: job.awb || '',
+      flight_from: job.flight_from || '',
+      flight_to: job.flight_to || '',
+      exporter: job.exporter || '',
+      importer: job.importer || '',
+      invoiceNo: job.invoice_no || '',
+      
+      // Transport fields
+      port: job.port || '',
+      trailer_no: job.trailer_no || '',
+      size: job.size || '',
+      lrn_no: job.lrn_no || '',
+      from: job.from || '',
+      to: job.to || '',
+      shipper_name: job.shipper_name || '',
+      party_name: job.party_name || '',
+      factory_reporting_date: job.factory_reporting_date ? new Date(job.factory_reporting_date).toISOString().split('T')[0] : '',
+      factory_reporting_out: job.factory_reporting_out ? new Date(job.factory_reporting_out).toISOString().split('T')[0] : '',
+      offloading_date: job.offloading_date ? new Date(job.offloading_date).toISOString().split('T')[0] : '',
+      days_of_detention: job.days_of_detention || '',
+      transporter: job.transporter || '',
+      vehicle_buy_amount: job.vehicle_buy_amount || '',
+      vehicle_billing_amount: job.vehicle_billing_amount || '',
+      movement: job.movement || '',
+      driver_name: job.driver_name || '',
+      driver_mobile_no: job.driver_mobile_no || '',
+      bill_no: job.bill_no || '',
+      bill_date: job.bill_date ? new Date(job.bill_date).toISOString().split('T')[0] : '',
+      amount: job.amount || '',
+    };
+    
+    setFormData(formDataFromJob);
+    setShowJobForm(true);
+    setActiveStep(3); // Start at port details step for editing
+  }, []);
+
+  // Handle delete job
+  const handleDeleteJob = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('jobs')
+        .delete()
+        .eq('id', jobToDelete.id);
+      
+      if (error) throw error;
+      
+      setShowDeleteModal(false);
+      setJobToDelete(null);
+      setSuccess('Job deleted successfully!');
+      
+      // Refresh the jobs list
+      fetchJobs();
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
-  ];
+  }, [jobToDelete, fetchJobs]);
 
-  // Merge real jobs with sample ones
-  const displayJobs = [...jobs, ...(activities || [])];
+  // Confirm delete
+  const confirmDelete = useCallback((job) => {
+    setJobToDelete(job);
+    setShowDeleteModal(true);
+  }, []);
+
+  // Render step 3 fields based on job type
+const renderStep3Fields = useCallback(() => {
+    if (jobType === 'AIR FREIGHT') {
+      return (
+        <div className="port-details-form">
+          <h2>Air Freight Details - {tradeDirection}</h2>
+          <div className="form-grid-two-column">
+            {[
+              { label: 'Job No.', name: 'jobNo', type: 'number' },
+              { label: 'Shipper', name: 'shipper', type: 'text' },
+              { label: 'Consignee', name: 'consignee', type: 'text' },
+              { label: 'Notify Party', name: 'notify_party', type: 'text' },
+              { label: 'Airport of Departure', name: 'airport_of_departure', type: 'text' },
+              { label: 'Airport of Destination', name: 'airport_of_destination', type: 'text' },
+              { label: 'No of Packages', name: 'no_of_packages', type: 'number' },
+              { label: 'Gross Weight', name: 'grossWeight', type: 'number' },
+              { label: 'Dimension (CMS)', name: 'dimension_cms', type: 'text' },
+              { label: 'Chargeable Weight', name: 'chargeable_weight', type: 'number' },
+              { label: 'Client No', name: 'client_no', type: 'text' },
+              { label: 'Name of Airline', name: 'name_of_airline', type: 'text' },
+              { label: 'AWB', name: 'awb', type: 'text' },
+              { label: 'From', name: 'flight_from', type: 'text' },
+              { label: 'To', name: 'flight_to', type: 'text' },
+              { label: 'ETA (Date)', name: 'flight_eta', type: 'date' },
+              { label: 'Invoice No', name: 'invoiceNo', type: 'text' },
+              { label: 'Invoice Date', name: 'invoiceDate', type: 'date' },
+            ].map((field, index) => (
+              <div key={index} className="form-group">
+                <label>{field.label} <span className="required">*</span></label>
+                <input 
+                  type={field.type} 
+                  name={field.name}
+                  value={formData[field.name]}
+                  onChange={handleInputChange}
+                  className={validationErrors[field.name] ? 'error' : ''}
+                />
+                {validationErrors[field.name] && 
+                  <span className="field-error">{validationErrors[field.name]}</span>
+                }
+              </div>
+            ))}
+          </div>
+          
+          <div className="client-os-info">
+            Client O/S: Credit Term: CASH | Total O/S: 46000 | Over Due O/S: 46000
+          </div>
+        </div>
+      );
+     } else if (jobType === 'TRANSPORT') {
+      return (
+        <div className="port-details-form">
+          <h2>Transport Details - {tradeDirection}</h2>
+          <div className="form-grid-two-column">
+            {[
+              { label: 'Job No.', name: 'jobNo', type: 'number' },
+              { label: 'Port', name: 'port', type: 'text' },
+              { label: 'Trailer No', name: 'trailer_no', type: 'text' },
+              { label: 'Container No', name: 'containerNo', type: 'text' },
+              { label: 'Size', name: 'size', type: 'text' },
+              { label: 'LRN No', name: 'lrn_no', type: 'text' },
+              { label: 'From', name: 'from', type: 'text' },
+              { label: 'To', name: 'to', type: 'text' },
+              { label: 'Shipper Name', name: 'shipper_name', type: 'text' },
+              { label: 'Party Name', name: 'party_name', type: 'text' },
+              { label: 'Factory Reporting Date', name: 'factory_reporting_date', type: 'date' },
+              { label: 'Factory Reporting Out', name: 'factory_reporting_out', type: 'date' },
+              { label: 'Offloading Date', name: 'offloading_date', type: 'date' },
+              { label: 'Days of Detention', name: 'days_of_detention', type: 'number' },
+              { label: 'Transporter', name: 'transporter', type: 'text' },
+              { label: 'Vehicle Buy Amount', name: 'vehicle_buy_amount', type: 'number' },
+              { label: 'Vehicle Billing Amount', name: 'vehicle_billing_amount', type: 'number' },
+              { label: 'Movement', name: 'movement', type: 'text' },
+              { label: 'Driver Name', name: 'driver_name', type: 'text' },
+              { label: 'Driver Mobile No', name: 'driver_mobile_no', type: 'text' },
+              { label: 'Bill No', name: 'bill_no', type: 'text' },
+              { label: 'Bill Date', name: 'bill_date', type: 'date' },
+              { label: 'Amount', name: 'amount', type: 'number' },
+            ].map((field, index) => (
+              <div key={index} className="form-group">
+                <label>{field.label} <span className="required">*</span></label>
+                <input 
+                  type={field.type} 
+                  name={field.name}
+                  value={formData[field.name]}
+                  onChange={handleInputChange}
+                  className={validationErrors[field.name] ? 'error' : ''}
+                />
+                {validationErrors[field.name] && 
+                  <span className="field-error">{validationErrors[field.name]}</span>
+                }
+              </div>
+            ))}
+          </div>
+          
+          <div className="client-os-info">
+            Client O/S: Credit Term: CASH | Total O/S: 46000 | Over Due O/S: 46000
+          </div>
+        </div>
+      );
+    }else {
+      return (
+        <div className="port-details-form">
+          <h2>Port Details - {tradeDirection}</h2>
+          <div className="form-grid-two-column">
+            {[
+              { label: 'Job No.', name: 'jobNo', type: 'number', condition: true },
+              { label: 'Exporter', name: 'exporter', type: 'text', condition: tradeDirection === 'EXPORT' },
+              { label: 'Importer', name: 'importer', type: 'text', condition: tradeDirection === 'IMPORT' },
+              { label: 'Invoice No', name: 'invoiceNo', type: 'text', condition: true },
+              { label: 'Invoice Date', name: 'invoiceDate', type: 'date', condition: true },
+              { label: 'Stuffing Date', name: 'stuffingDate', type: 'date', condition: true },
+              { label: 'H/O Date', name: 'hoDate', type: 'date', condition: true },
+              { label: 'Terms', name: 'terms', type: 'text', condition: true },
+              { label: 'Consignee', name: 'consignee', type: 'text', condition: true },
+              { label: 'No of Cartoons', name: 'noOfCartoons', type: 'number', condition: true },
+              { label: 'S/B No', name: 'sbNo', type: 'text', condition: true },
+              { label: 'S/B Date', name: 'sbDate', type: 'date', condition: true },
+              { label: 'POL', name: 'pol', type: 'text', condition: true },
+              { label: 'POD', name: 'pod', type: 'text', condition: true },
+              { label: 'Destination', name: 'destination', type: 'text', condition: true },
+              { label: 'Commodity', name: 'commodity', type: 'text', condition: true },
+              { label: 'FOB', name: 'fob', type: 'text', condition: true },
+              { label: 'GR Weight', name: 'grWeight', type: 'number', condition: true },
+              { label: 'Net Weight', name: 'netWeight', type: 'number', condition: true },
+              { label: 'RAIL Out Date', name: 'railOutDate', type: 'date', condition: true },
+              { label: 'Container No', name: 'containerNo', type: 'text', condition: true },
+              { label: 'No of CNTR', name: 'noOfCntr', type: 'number', condition: true },
+              { label: 'Volume(CBM)', name: 'volume', type: 'number', condition: true },
+              { label: 'S/Line', name: 'sLine', type: 'text', condition: true },
+              { label: 'MBL No', name: 'mblNo', type: 'text', condition: true },
+              { label: 'MBL Date', name: 'mblDate', type: 'date', condition: true },
+              { label: 'HBL No', name: 'hblNo', type: 'text', condition: true },
+              { label: 'HBL DT', name: 'hblDt', type: 'date', condition: true },
+              { label: 'VESSEL', name: 'vessel', type: 'text', condition: true },
+              { label: 'VOY', name: 'voy', type: 'text', condition: true },
+              { label: 'ETD', name: 'etd', type: 'datetime-local', condition: true },
+              { label: 'SOB', name: 'sob', type: 'text', condition: true },
+              { label: 'ETA', name: 'eta', type: 'datetime-local', condition: true },
+              { label: 'A/C', name: 'ac', type: 'text', condition: true },
+              { label: 'Bill No', name: 'billNo', type: 'text', condition: true },
+              { label: 'Bill Date', name: 'billDate', type: 'date', condition: true },
+              { label: 'C/C Port', name: 'ccPort', type: 'text', condition: true },
+            ].map((field, index) => 
+              field.condition && (
+                <div key={index} className="form-group">
+                  <label>{field.label} <span className="required">*</span></label>
+                  <input 
+                    type={field.type} 
+                    name={field.name}
+                    value={formData[field.name]}
+                    onChange={handleInputChange}
+                    className={validationErrors[field.name] ? 'error' : ''}
+                  />
+                  {validationErrors[field.name] && 
+                    <span className="field-error">{validationErrors[field.name]}</span>
+                  }
+                </div>
+              )
+            )}
+          </div>
+          
+          <div className="client-os-info">
+            Client O/S: Credit Term: CASH | Total O/S: 46000 | Over Due O/S: 46000
+          </div>
+        </div>
+      );
+    }
+  }, [jobType, tradeDirection, formData, handleInputChange, validationErrors]);
 
   return (
     <>
@@ -422,7 +847,7 @@ const renderConditionalField = (fieldName, condition) => {
       <div className="card expandable-card">
         <div className="table-header">
           <h2>Current Active Jobs</h2>
-          <button className="add-shipment-btn" onClick={handleAddJob}>
+          <button className="add-shipment-btn" onClick={() => setShowJobForm(true)}>
             <span className="plus-icon">+</span>
             Add Job
           </button>
@@ -430,7 +855,7 @@ const renderConditionalField = (fieldName, condition) => {
         <div
           className="table-container"
           ref={tableContainerRef}
-          style={{ maxHeight: maxHeight, overflowY: 'auto' }}
+          style={{ maxHeight, overflowY: 'auto' }}
         >
           <table className="activity-table">
             <thead>
@@ -439,38 +864,69 @@ const renderConditionalField = (fieldName, condition) => {
                 <th>Client</th>
                 <th>POL</th>
                 <th>POD</th>
-                <th>EDT</th>
+                <th>Created At</th>
+                <th>Updated At</th>
                 <th>ETA</th>
+                <th>Type</th>
+                <th>Direction</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {displayJobs.map((job, index) => (
-                <tr key={index}>
-                  <td>{job.jobNo}</td>
-                  <td>{job.client}</td>
-                  <td>{job.pol}</td>
-                  <td>{job.pod}</td>
-                  <td>{job.edt}</td>
-                  <td>{job.eta}</td>
+              {jobs.length > 0 ? (
+                jobs.map((job, index) => (
+                  <tr key={index}>
+                    <td>{job.jobNo}</td>
+                    <td>{job.client}</td>
+                    <td>{job.pol}</td>
+                    <td>{job.pod}</td>
+                    <td>{job.createdAt}</td>
+                    <td>{job.updatedAt}</td>
+                    <td>{job.eta}</td>
+                    <td>{job.jobType}</td>
+                    <td>{job.tradeDirection}</td>
+                    <td className="actions-cell">
+                      <button 
+                        className="edit-btn"
+                        onClick={() => handleEditJob(job)}
+                        title="Edit Job"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        className="delete-btn"
+                        onClick={() => confirmDelete(job)}
+                        title="Delete Job"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="10" style={{textAlign: 'center', padding: '20px'}}>
+                    No active jobs found
+                  </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Job Creation Form Modal */}
+      {/* Job Creation/Edit Form Modal */}
       {showJobForm && (
         <div className="modal-overlay">
           <div className="modal-content job-modal">
             <div className="new-shipment-card">
               <div className="new-shipment-header">
-                <h1>Create Job</h1>
+                <h1>{editingJob ? 'Edit Job' : 'Create Job'}</h1>
               </div>
 
               {/* Progress Steps */}
               <div className="progress-steps">
-                {steps.map((step, index) => (
+                {STEPS.map((step, index) => (
                   <div 
                     key={`step-${index}`} 
                     className={`step ${index + 1 === activeStep ? 'active' : ''} ${index + 1 < activeStep ? 'completed' : ''}`}
@@ -482,7 +938,7 @@ const renderConditionalField = (fieldName, condition) => {
                 <div className="progress-bar">
                   <div 
                     className="progress-fill" 
-                    style={{ width: `${((activeStep - 1) / (steps.length - 1)) * 100}%` }}
+                    style={{ width: `${((activeStep - 1) / (STEPS.length - 1)) * 100}%` }}
                   ></div>
                 </div>
               </div>
@@ -491,12 +947,12 @@ const renderConditionalField = (fieldName, condition) => {
               <div className="step-content">
                 {activeStep === 1 && (
                   <div className="shipment-type-selection">
-                    <h2>What type of Job would you like to create?</h2>
+                    <h2>What type of Job would you like to {editingJob ? 'edit' : 'create'}?</h2>
                     {validationErrors.jobType && (
                       <div className="validation-error">{validationErrors.jobType}</div>
                     )}
                     <div className="shipment-type-grid">
-                      {jobTypes.map((type, index) => (
+                      {JOB_TYPES.map((type, index) => (
                         <div 
                           key={`type-${index}`} 
                           className={`shipment-type-card ${jobType === type ? 'selected' : ''}`}
@@ -516,7 +972,7 @@ const renderConditionalField = (fieldName, condition) => {
                       <div className="validation-error">{validationErrors.tradeDirection}</div>
                     )}
                     <div className="trade-direction-grid">
-                      {tradeDirections.map((direction, index) => (
+                      {TRADE_DIRECTIONS.map((direction, index) => (
                         <div 
                           key={`direction-${index}`} 
                           className={`trade-direction-card ${tradeDirection === direction ? 'selected' : ''}`}
@@ -529,505 +985,11 @@ const renderConditionalField = (fieldName, condition) => {
                   </div>
                 )}
 
-                {activeStep === 3 && (
-                  <div className="port-details-form">
-                    <h2>Port Details - {tradeDirection}</h2>
-                    <div className="form-grid-two-column">
-                      {/* Job No */}
-                      <div className="form-group">
-                        <label>Job No. <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="jobNo"
-                          value={formData.jobNo}
-                          onChange={handleInputChange}
-                          className={validationErrors.jobNo ? 'error' : ''}
-                        />
-                        {validationErrors.jobNo && <span className="field-error">{validationErrors.jobNo}</span>}
-                      </div>
-                      
-                      {/* Exporter (only for export jobs) */}
-                      {tradeDirection === 'EXPORT' && (
-                        <div className="form-group">
-                          <label>Exporter <span className="required">*</span></label>
-                          <input 
-                            type="text" 
-                            name="exporter"
-                            value={formData.exporter}
-                            onChange={handleInputChange}
-                            className={validationErrors.exporter ? 'error' : ''}
-                          />
-                          {validationErrors.exporter && <span className="field-error">{validationErrors.exporter}</span>}
-                        </div>
-                      )}
-                      
-                      {/* Importer (only for import jobs) */}
-                      {tradeDirection === 'IMPORT' && (
-                        <div className="form-group">
-                          <label>Importer <span className="required">*</span></label>
-                          <input 
-                            type="text" 
-                            name="importer"
-                            value={formData.importer}
-                            onChange={handleInputChange}
-                            className={validationErrors.importer ? 'error' : ''}
-                          />
-                          {validationErrors.importer && <span className="field-error">{validationErrors.importer}</span>}
-                        </div>
-                      )}
-                      
-                      {/* Invoice No */}
-                      <div className="form-group">
-                        <label>Invoice No <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="invoiceNo"
-                          value={formData.invoiceNo}
-                          onChange={handleInputChange}
-                          className={validationErrors.invoiceNo ? 'error' : ''}
-                        />
-                        {validationErrors.invoiceNo && <span className="field-error">{validationErrors.invoiceNo}</span>}
-                      </div>
-                      
-                      {/* Invoice Date */}
-                      <div className="form-group">
-                        <label>Invoice Date <span className="required">*</span></label>
-                        <input 
-                          type="date" 
-                          name="invoiceDate"
-                          value={formData.invoiceDate}
-                          onChange={handleInputChange}
-                          className={validationErrors.invoiceDate ? 'error' : ''}
-                        />
-                        {validationErrors.invoiceDate && <span className="field-error">{validationErrors.invoiceDate}</span>}
-                      </div>
-                      
-                      {/* Stuffing Date */}
-                      <div className="form-group">
-                        <label>Stuffing Date <span className="required">*</span></label>
-                        <input 
-                          type="date" 
-                          name="stuffingDate"
-                          value={formData.stuffingDate}
-                          onChange={handleInputChange}
-                          className={validationErrors.stuffingDate ? 'error' : ''}
-                        />
-                        {validationErrors.stuffingDate && <span className="field-error">{validationErrors.stuffingDate}</span>}
-                      </div>
-                      
-                      {/* H/O Date */}
-                      <div className="form-group">
-                        <label>H/O Date <span className="required">*</span></label>
-                        <input 
-                          type="date" 
-                          name="hoDate"
-                          value={formData.hoDate}
-                          onChange={handleInputChange}
-                          className={validationErrors.hoDate ? 'error' : ''}
-                        />
-                        {validationErrors.hoDate && <span className="field-error">{validationErrors.hoDate}</span>}
-                      </div>
-                      
-                      {/* Terms */}
-                      <div className="form-group">
-                        <label>Terms <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="terms"
-                          value={formData.terms}
-                          onChange={handleInputChange}
-                          className={validationErrors.terms ? 'error' : ''}
-                        />
-                        {validationErrors.terms && <span className="field-error">{validationErrors.terms}</span>}
-                      </div>
-                      
-                      {/* Consignee */}
-                      <div className="form-group">
-                        <label>Consignee <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="consignee"
-                          value={formData.consignee}
-                          onChange={handleInputChange}
-                          className={validationErrors.consignee ? 'error' : ''}
-                        />
-                        {validationErrors.consignee && <span className="field-error">{validationErrors.consignee}</span>}
-                      </div>
-                      
-                      {/* No of Cartoons */}
-                      <div className="form-group">
-                        <label>No of Cartoons <span className="required">*</span></label>
-                        <input 
-                          type="number" 
-                          name="noOfCartoons"
-                          value={formData.noOfCartoons}
-                          onChange={handleInputChange}
-                          className={validationErrors.noOfCartoons ? 'error' : ''}
-                        />
-                        {validationErrors.noOfCartoons && <span className="field-error">{validationErrors.noOfCartoons}</span>}
-                      </div>
-                      
-                      {/* S/B No */}
-                      <div className="form-group">
-                        <label>S/B No <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="sbNo"
-                          value={formData.sbNo}
-                          onChange={handleInputChange}
-                          className={validationErrors.sbNo ? 'error' : ''}
-                        />
-                        {validationErrors.sbNo && <span className="field-error">{validationErrors.sbNo}</span>}
-                      </div>
-                      
-                      {/* S/B Date */}
-                      <div className="form-group">
-                        <label>S/B Date <span className="required">*</span></label>
-                        <input 
-                          type="date" 
-                          name="sbDate"
-                          value={formData.sbDate}
-                          onChange={handleInputChange}
-                          className={validationErrors.sbDate ? 'error' : ''}
-                        />
-                        {validationErrors.sbDate && <span className="field-error">{validationErrors.sbDate}</span>}
-                      </div>
-                      
-                      {/* POL */}
-                      <div className="form-group">
-                        <label>POL <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="pol"
-                          value={formData.pol}
-                          onChange={handleInputChange}
-                          className={validationErrors.pol ? 'error' : ''}
-                        />
-                        {validationErrors.pol && <span className="field-error">{validationErrors.pol}</span>}
-                      </div>
-                      
-                      {/* POD */}
-                      <div className="form-group">
-                        <label>POD <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="pod"
-                          value={formData.pod}
-                          onChange={handleInputChange}
-                          className={validationErrors.pod ? 'error' : ''}
-                        />
-                        {validationErrors.pod && <span className="field-error">{validationErrors.pod}</span>}
-                      </div>
-                      
-                      {/* Destination */}
-                      <div className="form-group">
-                        <label>Destination <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="destination"
-                          value={formData.destination}
-                          onChange={handleInputChange}
-                          className={validationErrors.destination ? 'error' : ''}
-                        />
-                        {validationErrors.destination && <span className="field-error">{validationErrors.destination}</span>}
-                      </div>
-                      
-                      {/* Commodity */}
-                      <div className="form-group">
-                        <label>Commodity <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="commodity"
-                          value={formData.commodity}
-                          onChange={handleInputChange}
-                          className={validationErrors.commodity ? 'error' : ''}
-                        />
-                        {validationErrors.commodity && <span className="field-error">{validationErrors.commodity}</span>}
-                      </div>
-                      
-                      {/* FOB */}
-                      <div className="form-group">
-                        <label>FOB <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="fob"
-                          value={formData.fob}
-                          onChange={handleInputChange}
-                          className={validationErrors.fob ? 'error' : ''}
-                        />
-                        {validationErrors.fob && <span className="field-error">{validationErrors.fob}</span>}
-                      </div>
-                      
-                      {/* GR Weight */}
-                      <div className="form-group">
-                        <label>GR Weight <span className="required">*</span></label>
-                        <input 
-                          type="number" 
-                          name="grWeight"
-                          value={formData.grWeight}
-                          onChange={handleInputChange}
-                          className={validationErrors.grWeight ? 'error' : ''}
-                        />
-                        {validationErrors.grWeight && <span className="field-error">{validationErrors.grWeight}</span>}
-                      </div>
-                      
-                      {/* Net Weight */}
-                      <div className="form-group">
-                        <label>Net Weight <span className="required">*</span></label>
-                        <input 
-                          type="number" 
-                          name="netWeight"
-                          value={formData.netWeight}
-                          onChange={handleInputChange}
-                          className={validationErrors.netWeight ? 'error' : ''}
-                        />
-                        {validationErrors.netWeight && <span className="field-error">{validationErrors.netWeight}</span>}
-                      </div>
-                      
-                      {/* RAIL Out Date */}
-                      <div className="form-group">
-                        <label>RAIL Out Date <span className="required">*</span></label>
-                        <input 
-                          type="date" 
-                          name="railOutDate"
-                          value={formData.railOutDate}
-                          onChange={handleInputChange}
-                          className={validationErrors.railOutDate ? 'error' : ''}
-                        />
-                        {validationErrors.railOutDate && <span className="field-error">{validationErrors.railOutDate}</span>}
-                      </div>
-                      
-                      {/* Container No */}
-                      <div className="form-group">
-                        <label>Container No <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="containerNo"
-                          value={formData.containerNo}
-                          onChange={handleInputChange}
-                          className={validationErrors.containerNo ? 'error' : ''}
-                        />
-                        {validationErrors.containerNo && <span className="field-error">{validationErrors.containerNo}</span>}
-                      </div>
-                      
-                      {/* No of CNTR */}
-                      <div className="form-group">
-                        <label>No of CNTR <span className="required">*</span></label>
-                        <input 
-                          type="number" 
-                          name="noOfCntr"
-                          value={formData.noOfCntr}
-                          onChange={handleInputChange}
-                          className={validationErrors.noOfCntr ? 'error' : ''}
-                        />
-                        {validationErrors.noOfCntr && <span className="field-error">{validationErrors.noOfCntr}</span>}
-                      </div>
-                      
-                      {/* Volume(CBM) */}
-                      <div className="form-group">
-                        <label>Volume(CBM) <span className="required">*</span></label>
-                        <input 
-                          type="number" 
-                          name="volume"
-                          value={formData.volume}
-                          onChange={handleInputChange}
-                          className={validationErrors.volume ? 'error' : ''}
-                        />
-                        {validationErrors.volume && <span className="field-error">{validationErrors.volume}</span>}
-                      </div>
-                      
-                      {/* S/Line */}
-                      <div className="form-group">
-                        <label>S/Line <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="sLine"
-                          value={formData.sLine}
-                          onChange={handleInputChange}
-                          className={validationErrors.sLine ? 'error' : ''}
-                        />
-                        {validationErrors.sLine && <span className="field-error">{validationErrors.sLine}</span>}
-                      </div>
-                      
-                      {/* MBL No */}
-                      <div className="form-group">
-                        <label>MBL No <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="mblNo"
-                          value={formData.mblNo}
-                          onChange={handleInputChange}
-                          className={validationErrors.mblNo ? 'error' : ''}
-                        />
-                        {validationErrors.mblNo && <span className="field-error">{validationErrors.mblNo}</span>}
-                      </div>
-                      
-                      {/* MBL Date */}
-                      <div className="form-group">
-                        <label>MBL Date <span className="required">*</span></label>
-                        <input 
-                          type="date" 
-                          name="mblDate"
-                          value={formData.mblDate}
-                          onChange={handleInputChange}
-                          className={validationErrors.mblDate ? 'error' : ''}
-                        />
-                        {validationErrors.mblDate && <span className="field-error">{validationErrors.mblDate}</span>}
-                      </div>
-                      
-                      {/* HBL No */}
-                      <div className="form-group">
-                        <label>HBL No <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="hblNo"
-                          value={formData.hblNo}
-                          onChange={handleInputChange}
-                          className={validationErrors.hblNo ? 'error' : ''}
-                        />
-                        {validationErrors.hblNo && <span className="field-error">{validationErrors.hblNo}</span>}
-                      </div>
-                      
-                      {/* HBL DT */}
-                      <div className="form-group">
-                        <label>HBL DT <span className="required">*</span></label>
-                        <input 
-                          type="date" 
-                          name="hblDt"
-                          value={formData.hblDt}
-                          onChange={handleInputChange}
-                          className={validationErrors.hblDt ? 'error' : ''}
-                        />
-                        {validationErrors.hblDt && <span className="field-error">{validationErrors.hblDt}</span>}
-                      </div>
-                      
-                      {/* VESSEL */}
-                      <div className="form-group">
-                        <label>VESSEL <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="vessel"
-                          value={formData.vessel}
-                          onChange={handleInputChange}
-                          className={validationErrors.vessel ? 'error' : ''}
-                        />
-                        {validationErrors.vessel && <span className="field-error">{validationErrors.vessel}</span>}
-                      </div>
-                      
-                      {/* VOY */}
-                      <div className="form-group">
-                        <label>VOY <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="voy"
-                          value={formData.voy}
-                          onChange={handleInputChange}
-                          className={validationErrors.voy ? 'error' : ''}
-                        />
-                        {validationErrors.voy && <span className="field-error">{validationErrors.voy}</span>}
-                      </div>
-                      
-                      {/* ETD */}
-                      <div className="form-group">
-                        <label>ETD <span className="required">*</span></label>
-                        <input 
-                          type="datetime-local" 
-                          name="etd"
-                          value={formData.etd}
-                          onChange={handleInputChange}
-                          className={validationErrors.etd ? 'error' : ''}
-                        />
-                        {validationErrors.etd && <span className="field-error">{validationErrors.etd}</span>}
-                      </div>
-                      
-                      {/* SOB */}
-                      <div className="form-group">
-                        <label>SOB <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="sob"
-                          value={formData.sob}
-                          onChange={handleInputChange}
-                          className={validationErrors.sob ? 'error' : ''}
-                        />
-                        {validationErrors.sob && <span className="field-error">{validationErrors.sob}</span>}
-                      </div>
-                      
-                      {/* ETA */}
-                      <div className="form-group">
-                        <label>ETA <span className="required">*</span></label>
-                        <input 
-                          type="datetime-local" 
-                          name="eta"
-                          value={formData.eta}
-                          onChange={handleInputChange}
-                          className={validationErrors.eta ? 'error' : ''}
-                        />
-                        {validationErrors.eta && <span className="field-error">{validationErrors.eta}</span>}
-                      </div>
-                      
-                      {/* A/C */}
-                      <div className="form-group">
-                        <label>A/C <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="ac"
-                          value={formData.ac}
-                          onChange={handleInputChange}
-                          className={validationErrors.ac ? 'error' : ''}
-                        />
-                        {validationErrors.ac && <span className="field-error">{validationErrors.ac}</span>}
-                      </div>
-                      
-                      {/* Bill No */}
-                      <div className="form-group">
-                        <label>Bill No <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="billNo"
-                          value={formData.billNo}
-                          onChange={handleInputChange}
-                          className={validationErrors.billNo ? 'error' : ''}
-                        />
-                        {validationErrors.billNo && <span className="field-error">{validationErrors.billNo}</span>}
-                      </div>
-                      
-                      {/* Bill Date */}
-                      <div className="form-group">
-                        <label>Bill Date <span className="required">*</span></label>
-                        <input 
-                          type="date" 
-                          name="billDate"
-                          value={formData.billDate}
-                          onChange={handleInputChange}
-                          className={validationErrors.billDate ? 'error' : ''}
-                        />
-                        {validationErrors.billDate && <span className="field-error">{validationErrors.billDate}</span>}
-                      </div>
-                      
-                      {/* C/C Port */}
-                      <div className="form-group">
-                        <label>C/C Port <span className="required">*</span></label>
-                        <input 
-                          type="text" 
-                          name="ccPort"
-                          value={formData.ccPort}
-                          onChange={handleInputChange}
-                          className={validationErrors.ccPort ? 'error' : ''}
-                        />
-                        {validationErrors.ccPort && <span className="field-error">{validationErrors.ccPort}</span>}
-                      </div>
-                    </div>
-                    
-                    <div className="client-os-info">
-                      Client O/S: Credit Term: CASH | Total O/S: 46000 | Over Due O/S: 46000
-                    </div>
-                  </div>
-                )}
+                {activeStep === 3 && renderStep3Fields()}
 
-                {activeStep === 4 && (
-                  <div className="summary-step">
-                    <h2>Summary - {tradeDirection}</h2>
+              {activeStep === 4 && (
+    <div className="summary-step">
+      <h2>Summary - {tradeDirection} - {jobType}</h2>
                     
                     <div className="client-branch-section">
                       <div className="client-info">
@@ -1044,160 +1006,175 @@ const renderConditionalField = (fieldName, condition) => {
                       </div>
                     </div>
 
-                    <div className="shipper-section">
-                      <span className="label">Shipper</span>
-                      <span className="value">{formData.shipper}</span>
-                    </div>
+                    {jobType === 'AIR FREIGHT' ? (
+                      <>
+                        <div className="shipper-section">
+                          <span className="label">Shipper</span>
+                          <span className="value">{formData.shipper}</span>
+                        </div>
 
-                    <div className="divider"></div>
+                        <div className="divider"></div>
 
-                    <div className="booking-info-section">
-                      <h3>Booking Info</h3>
-                      <div className="booking-info-grid">
-                        <div className="booking-info-row">
-                          <span className="label">Job No:</span>
-                          <span className="value">{formData.jobNo}</span>
-                          {tradeDirection === 'EXPORT' && (
-                            <>
-                              <span className="label">Exporter:</span>
-                              <span className="value">{formData.exporter}</span>
-                            </>
-                          )}
-                          {tradeDirection === 'IMPORT' && (
-                            <>
-                              <span className="label">Importer:</span>
-                              <span className="value">{formData.importer}</span>
-                            </>
-                          )}
+                        <div className="booking-info-section">
+                          <h3>Air Freight Booking Info</h3>
+                          <div className="booking-info-grid">
+                            {[
+                              { label: 'Job No:', value: formData.jobNo },
+                              { label: 'Shipper:', value: formData.shipper },
+                              { label: 'Consignee:', value: formData.consignee },
+                              { label: 'Notify Party:', value: formData.notify_party },
+                              { label: 'Airport of Departure:', value: formData.airport_of_departure },
+                              { label: 'Airport of Destination:', value: formData.airport_of_destination },
+                              { label: 'No of Packages:', value: formData.no_of_packages },
+                              { label: 'Gross Weight:', value: formData.grossWeight },
+                              { label: 'Dimension (CMS):', value: formData.dimension_cms },
+                              { label: 'Chargeable Weight:', value: formData.chargeable_weight },
+                              { label: 'Client No:', value: formData.client_no },
+                              { label: 'Name of Airline:', value: formData.name_of_airline },
+                              { label: 'AWB:', value: formData.awb },
+                              { label: 'From:', value: formData.flight_from },
+                              { label: 'To:', value: formData.flight_to },
+                              { label: 'ETA (Date):', value: formData.flight_eta },
+                              { label: 'Invoice No:', value: formData.invoiceNo },
+                              { label: 'Invoice Date:', value: formData.invoiceDate },
+                            ].map((item, index) => (
+                              <div key={index} className="booking-info-row">
+                                <span className="label">{item.label}</span>
+                                <span className="value">{item.value}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="booking-info-row">
-                          <span className="label">Invoice No:</span>
-                          <span className="value">{formData.invoiceNo}</span>
-                          <span className="label">Invoice Date:</span>
-                          <span className="value">{formData.invoiceDate}</span>
+                      </>
+                    )   : jobType === 'TRANSPORT' ? (
+        <>
+          <div className="shipper-section">
+            <span className="label">Shipper</span>
+            <span className="value">{formData.shipper_name}</span>
+          </div>
+
+          <div className="divider"></div>
+
+          <div className="booking-info-section">
+            <h3>Transport Booking Info</h3>
+            <div className="booking-info-grid">
+              {[
+                { label: 'Job No:', value: formData.jobNo },
+                { label: 'Port:', value: formData.port },
+                { label: 'Trailer No:', value: formData.trailer_no },
+                { label: 'Container No:', value: formData.containerNo },
+                { label: 'Size:', value: formData.size },
+                { label: 'LRN No:', value: formData.lrn_no },
+                { label: 'From:', value: formData.from },
+                { label: 'To:', value: formData.to },
+                { label: 'Shipper Name:', value: formData.shipper_name },
+                { label: 'Party Name:', value: formData.party_name },
+                { label: 'Factory Reporting Date:', value: formData.factory_reporting_date },
+                { label: 'Factory Reporting Out:', value: formData.factory_reporting_out },
+                { label: 'Offloading Date:', value: formData.offloading_date },
+                { label: 'Days of Detention:', value: formData.days_of_detention },
+                { label: 'Transporter:', value: formData.transporter },
+                { label: 'Vehicle Buy Amount:', value: formData.vehicle_buy_amount },
+                { label: 'Vehicle Billing Amount:', value: formData.vehicle_billing_amount },
+                { label: 'Movement:', value: formData.movement },
+                { label: 'Driver Name:', value: formData.driver_name },
+                { label: 'Driver Mobile No:', value: formData.driver_mobile_no },
+                { label: 'Bill No:', value: formData.bill_no },
+                { label: 'Bill Date:', value: formData.bill_date },
+                { label: 'Amount:', value: formData.amount },
+              ].map((item, index) => (
+                <div key={index} className="booking-info-row">
+                  <span className="label">{item.label}</span>
+                  <span className="value">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      ) :  (
+                      <>
+                        <div className="shipper-section">
+                          <span className="label">Shipper</span>
+                          <span className="value">{formData.shipper}</span>
                         </div>
-                        <div className="booking-info-row">
-                          <span className="label">Stuffing Date:</span>
-                          <span className="value">{formData.stuffingDate}</span>
-                          <span className="label">H/O Date:</span>
-                          <span className="value">{formData.hoDate}</span>
+
+                        <div className="divider"></div>
+
+                        <div className="booking-info-section">
+                          <h3>Booking Info</h3>
+                          <div className="booking-info-grid">
+                            {[
+                              { label: 'Job No:', value: formData.jobNo },
+                              ...(tradeDirection === 'EXPORT' ? [{ label: 'Exporter:', value: formData.exporter }] : []),
+                              ...(tradeDirection === 'IMPORT' ? [{ label: 'Importer:', value: formData.importer }] : []),
+                              { label: 'Invoice No:', value: formData.invoiceNo },
+                              { label: 'Invoice Date:', value: formData.invoiceDate },
+                              { label: 'Stuffing Date:', value: formData.stuffingDate },
+                              { label: 'H/O Date:', value: formData.hoDate },
+                              { label: 'Terms:', value: formData.terms },
+                              { label: 'Consignee:', value: formData.consignee },
+                              { label: 'No of Cartoons:', value: formData.noOfCartoons },
+                              { label: 'S/B No:', value: formData.sbNo },
+                              { label: 'S/B Date:', value: formData.sbDate },
+                              { label: 'POL:', value: formData.pol },
+                              { label: 'POD:', value: formData.pod },
+                              { label: 'Destination:', value: formData.destination },
+                              { label: 'Commodity:', value: formData.commodity },
+                              { label: 'FOB:', value: formData.fob },
+                              { label: 'GR Weight:', value: formData.grWeight },
+                              { label: 'Net Weight:', value: formData.netWeight },
+                              { label: 'RAIL Out Date:', value: formData.railOutDate },
+                              { label: 'Container No:', value: formData.containerNo },
+                              { label: 'No of CNTR:', value: formData.noOfCntr },
+                              { label: 'Volume:', value: formData.volume },
+                              { label: 'S/Line:', value: formData.sLine },
+                              { label: 'MBL No:', value: formData.mblNo },
+                              { label: 'MBL Date:', value: formData.mblDate },
+                              { label: 'HBL No:', value: formData.hblNo },
+                              { label: 'HBL DT:', value: formData.hblDt },
+                              { label: 'VESSEL:', value: formData.vessel },
+                              { label: 'VOY:', value: formData.voy },
+                              { label: 'ETD:', value: formData.etd },
+                              { label: 'SOB:', value: formData.sob },
+                              { label: 'ETA:', value: formData.eta },
+                              { label: 'A/C:', value: formData.ac },
+                              { label: 'Bill No:', value: formData.billNo },
+                              { label: 'Bill Date:', value: formData.billDate },
+                              { label: 'C/C Port:', value: formData.ccPort },
+                            ].map((item, index) => (
+                              <div key={index} className="booking-info-row">
+                                <span className="label">{item.label}</span>
+                                <span className="value">{item.value}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="booking-info-row">
-                          <span className="label">Terms:</span>
-                          <span className="value">{formData.terms}</span>
-                          <span className="label">Consignee:</span>
-                          <span className="value">{formData.consignee}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">No of Cartoons:</span>
-                          <span className="value">{formData.noOfCartoons}</span>
-                          <span className="label">S/B No:</span>
-                          <span className="value">{formData.sbNo}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">S/B Date:</span>
-                          <span className="value">{formData.sbDate}</span>
-                          <span className="label">POL:</span>
-                          <span className="value">{formData.pol}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">POD:</span>
-                          <span className="value">{formData.pod}</span>
-                          <span className="label">Destination:</span>
-                          <span className="value">{formData.destination}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">Commodity:</span>
-                          <span className="value">{formData.commodity}</span>
-                          <span className="label">FOB:</span>
-                          <span className="value">{formData.fob}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">GR Weight:</span>
-                          <span className="value">{formData.grWeight}</span>
-                          <span className="label">Net Weight:</span>
-                          <span className="value">{formData.netWeight}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">RAIL Out Date:</span>
-                          <span className="value">{formData.railOutDate}</span>
-                          <span className="label">Container No:</span>
-                          <span className="value">{formData.containerNo}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">No of CNTR:</span>
-                          <span className="value">{formData.noOfCntr}</span>
-                          <span className="label">Volume:</span>
-                          <span className="value">{formData.volume}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">S/Line:</span>
-                          <span className="value">{formData.sLine}</span>
-                          <span className="label">MBL No:</span>
-                          <span className="value">{formData.mblNo}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">MBL Date:</span>
-                          <span className="value">{formData.mblDate}</span>
-                          <span className="label">HBL No:</span>
-                          <span className="value">{formData.hblNo}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">HBL DT:</span>
-                          <span className="value">{formData.hblDt}</span>
-                          <span className="label">VESSEL:</span>
-                          <span className="value">{formData.vessel}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">VOY:</span>
-                          <span className="value">{formData.voy}</span>
-                          <span className="label">ETD:</span>
-                          <span className="value">{formData.etd}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">SOB:</span>
-                          <span className="value">{formData.sob}</span>
-                          <span className="label">ETA:</span>
-                          <span className="value">{formData.eta}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">A/C:</span>
-                          <span className="value">{formData.ac}</span>
-                          <span className="label">Bill No:</span>
-                          <span className="value">{formData.billNo}</span>
-                        </div>
-                        <div className="booking-info-row">
-                          <span className="label">Bill Date:</span>
-                          <span className="value">{formData.billDate}</span>
-                          <span className="label">C/C Port:</span>
-                          <span className="value">{formData.ccPort}</span>
-                        </div>
-                      </div>
-                    </div>
+                      </>
+                    )}
 
                     <div className="divider"></div>
 
                     {/* Checkbox Section */}
                     <div className="confirmation-checkboxes">
-                      <div className="checkbox-item">
-                        <input type="checkbox" id="confirm1" required />
-                        <label htmlFor="confirm1">I confirm the accuracy of all information</label>
-                      </div>
-                      <div className="checkbox-item">
-                        <input type="checkbox" id="confirm2" required />
-                        <label htmlFor="confirm2">I agree to the terms and conditions</label>
-                      </div>
-                      <div className="checkbox-item">
-                        <input type="checkbox" id="confirm3" required />
-                        <label htmlFor="confirm3">I authorize this job</label>
-                      </div>
+                      {[
+                        { id: 'confirm1', label: 'I confirm the accuracy of all information' },
+                        { id: 'confirm2', label: 'I agree to the terms and conditions' },
+                        { id: 'confirm3', label: 'I authorize this job' },
+                      ].map((item, index) => (
+                        <div key={index} className="checkbox-item">
+                          <input type="checkbox" id={item.id} required />
+                          <label htmlFor={item.id}>{item.label}</label>
+                        </div>
+                      ))}
                     </div>
 
                     <div className="confirmation-prompt">
-                      <p>Are you sure you want to create the job?</p>
+                      <p>Are you sure you want to {editingJob ? 'update' : 'create'} the job?</p>
                       <div className="confirmation-buttons">
                         <button className="cancel-btn" onClick={handleCancel}>Cancel</button>
-                        <button className="confirm-btn" onClick={handleCreateJob}>OK</button>
+                        <button className="confirm-btn" onClick={handleCreateJob}>
+                          {editingJob ? 'Update' : 'Create'}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1215,195 +1192,126 @@ const renderConditionalField = (fieldName, condition) => {
                       Previous
                     </button>
                   )}
-                  {activeStep < steps.length && (
+                  {activeStep < STEPS.length && (
                     <button className="next-button" onClick={handleNext}>
                       Next
                     </button>
                   )}
-                  {activeStep === steps.length && (
+                  {activeStep === STEPS.length && (
                     <button className="confirm-button" onClick={handleCreateJob}>
-                      Confirm & Create Job
+                      {editingJob ? 'Update Job' : 'Confirm & Create Job'}
                     </button>
                   )}
                 </div>
               </div>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Organization Creation Modal */}
-          {showOrgModal && (
-            <div className="modal-overlay">
-              <div className="modal-content org-modal">
-                <div className="modal-header">
-                  <h2>Create Organization</h2>
-                  <button 
-                    className="close-button"
-                    onClick={() => setShowOrgModal(false)}
-                  >
-                    ×
-                  </button>
-                </div>
-                
-                <div className="modal-body org-modal-body">
-                  <div className="org-form-container">
-                    <div className="org-form-grid">
-                      <div className="org-form-group">
-                        <label>Name</label>
-                        <input 
-                          type="text" 
-                          name="name"
-                          value={orgFormData.name}
-                          onChange={handleOrgInputChange}
-                          className="transparent-input"
-                        />
-                      </div>
-                      
-                      <div className="org-form-group">
-                        <label>Record Status</label>
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="modal-overlay">
+          <div className="modal-content delete-modal">
+            <div className="modal-header">
+              <h2>Confirm Delete</h2>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete job #{jobToDelete?.jobNo}?</p>
+              <p>This action cannot be undone.</p>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="cancel-button"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="delete-confirm-button"
+                onClick={handleDeleteJob}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Organization Creation Modal */}
+      {showOrgModal && (
+        <div className="modal-overlay">
+          <div className="modal-content org-modal">
+            <div className="modal-header">
+              <h2>Create Organization</h2>
+              <button 
+                className="close-button"
+                onClick={() => setShowOrgModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body org-modal-body">
+              <div className="org-form-container">
+                <div className="org-form-grid">
+                  {[
+                    { label: 'Name', name: 'name', type: 'text' },
+                    { label: 'Record Status', name: 'recordStatus', type: 'select', options: ['Active', 'Inactive'] },
+                    { label: 'Sales person', name: 'salesPerson', type: 'text' },
+                    { label: 'Category List', name: 'category', type: 'select', options: CATEGORIES },
+                    { label: 'Branch', name: 'branch', type: 'text' },
+                    { label: 'Contact Person', name: 'contactPerson', type: 'text' },
+                    { label: 'Door No', name: 'doorNo', type: 'text' },
+                    { label: 'Building Name', name: 'buildingName', type: 'text' },
+                    { label: 'Street', name: 'street', type: 'text' },
+                    { label: 'Area', name: 'area', type: 'text' },
+                    { label: 'City', name: 'city', type: 'text' },
+                    { label: 'State', name: 'state', type: 'text' },
+                  ].map((field, index) => (
+                    <div key={index} className="org-form-group">
+                      <label>{field.label}</label>
+                      {field.type === 'select' ? (
                         <select 
-                          name="recordStatus"
-                          value={orgFormData.recordStatus}
+                          name={field.name}
+                          value={orgFormData[field.name]}
                           onChange={handleOrgInputChange}
                           className="transparent-input"
                         >
-                          <option value="Active">Active</option>
-                          <option value="Inactive">Inactive</option>
-                        </select>
-                      </div>
-                      
-                      <div className="org-form-group">
-                        <label>Sales person</label>
-                        <input 
-                          type="text" 
-                          name="salesPerson"
-                          value={orgFormData.salesPerson}
-                          onChange={handleOrgInputChange}
-                          className="transparent-input"
-                        />
-                      </div>
-                      
-                      <div className="org-form-group">
-                        <label>Category List</label>
-                        <select 
-                          name="category"
-                          value={orgFormData.category}
-                          onChange={handleOrgInputChange}
-                          className="transparent-input"
-                        >
-                          {categories.map((category, index) => (
-                            <option key={`category-${index}`} value={category}>{category}</option>
+                          {field.options.map((option, i) => (
+                            <option key={i} value={option}>{option}</option>
                           ))}
                         </select>
-                      </div>
-                      
-                      <div className="org-form-group">
-                        <label>Branch</label>
+                      ) : (
                         <input 
-                          type="text" 
-                          name="branch"
-                          value={orgFormData.branch}
+                          type={field.type} 
+                          name={field.name}
+                          value={orgFormData[field.name]}
                           onChange={handleOrgInputChange}
                           className="transparent-input"
                         />
-                      </div>
-                      
-                      <div className="org-form-group">
-                        <label>Contact Person</label>
-                        <input 
-                          type="text" 
-                          name="contactPerson"
-                          value={orgFormData.contactPerson}
-                          onChange={handleOrgInputChange}
-                          className="transparent-input"
-                        />
-                      </div>
-                      
-                      <div className="org-form-group">
-                        <label>Door No</label>
-                        <input 
-                          type="text" 
-                          name="doorNo"
-                          value={orgFormData.doorNo}
-                          onChange={handleOrgInputChange}
-                          className="transparent-input"
-                        />
-                      </div>
-                      
-                      <div className="org-form-group">
-                        <label>Building Name</label>
-                        <input 
-                          type="text" 
-                          name="buildingName"
-                          value={orgFormData.buildingName}
-                          onChange={handleOrgInputChange}
-                          className="transparent-input"
-                        />
-                      </div>
-                      
-                      <div className="org-form-group">
-                        <label>Street</label>
-                        <input 
-                          type="text" 
-                          name="street"
-                          value={orgFormData.street}
-                          onChange={handleOrgInputChange}
-                          className="transparent-input"
-                        />
-                      </div>
-                      
-                      <div className="org-form-group">
-                        <label>Area</label>
-                        <input 
-                          type="text" 
-                          name="area"
-                          value={orgFormData.area}
-                          onChange={handleOrgInputChange}
-                          className="transparent-input"
-                        />
-                      </div>
-                      
-                      <div className="org-form-group">
-                        <label>City</label>
-                        <input 
-                          type="text" 
-                          name="city"
-                          value={orgFormData.city}
-                          onChange={handleOrgInputChange}
-                          className="transparent-input"
-                        />
-                      </div>
-                      
-                      <div className="org-form-group">
-                        <label>State</label>
-                        <input 
-                          type="text" 
-                          name="state"
-                          value={orgFormData.state}
-                          onChange={handleOrgInputChange}
-                          className="transparent-input"
-                        />
-                      </div>
+                      )}
                     </div>
-                  </div>
-                </div>
-                
-                <div className="modal-footer org-modal-footer">
-                  <button 
-                    className="org-cancel-button"
-                    onClick={() => setShowOrgModal(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    className="org-confirm-button"
-                    onClick={handleCreateOrganization}
-                  >
-                    Create Organization
-                  </button>
+                  ))}
                 </div>
               </div>
             </div>
-          )}
+            
+            <div className="modal-footer org-modal-footer">
+              <button 
+                className="org-cancel-button"
+                onClick={() => setShowOrgModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="org-confirm-button"
+                onClick={handleCreateOrganization}
+              >
+                Create Organization
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>
