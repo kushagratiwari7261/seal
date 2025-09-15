@@ -243,7 +243,7 @@ const ActiveJob = () => {
         to: locationFields.to,
         createdAt: job.created_at ? new Date(job.created_at).toLocaleDateString() : '',
         updatedAt: job.updated_at ? new Date(job.updated_at).toLocaleDateString() : '',
-        eta: job.flight_eta ? new Date(job.flight_eta).toLocaleDateString() : job.eta ? new Date(job.eta).toLocaleDateString() : '',
+        eta: job.flight_eta,
         jobType: job.job_type,
         tradeDirection: job.trade_direction,
         
@@ -835,7 +835,7 @@ const getLocationColumnHeaders = useCallback((jobType) => {
               { label: 'H/O Date', name: 'hoDate', type: 'date', condition: true },
               { label: 'Terms', name: 'terms', type: 'text', condition: true },
               { label: 'Consignee', name: 'consignee', type: 'text', condition: true },
-              { label: 'No of Cartoons', name: 'noOfCartoons', type: 'number', condition: true },
+              
               { label: 'S/B No', name: 'sbNo', type: 'text', condition: true },
               { label: 'S/B Date', name: 'sbDate', type: 'date', condition: true },
               { label: 'From', name: 'pol', type: 'text', condition: true },
@@ -958,14 +958,15 @@ const renderJobSummary = useCallback(() => {
               </div>
               <div className="summary-row">
                 <span className="label">ETA:</span>
-                <span className="value">{getValue(selectedJob.eta)}</span>
+                <span className="value">{getValue(selectedJob.flight_eta)}</span>
               </div>
             </div>
           </div>
           
           <div className="summary-section">
+            
             <h3>Details</h3>
-            {selectedJob.jobType === 'AIR FREIGHT' ? (
+            {selectedJob.job_type === 'AIR FREIGHT' ? (
               <div className="summary-grid">
                 <div className="summary-row">
                   <span className="label">Shipper:</span>
@@ -1144,7 +1145,11 @@ const renderJobSummary = useCallback(() => {
         </td>
         <td>{job.createdAt}</td>
         <td>{job.updatedAt}</td>
-        <td>{job.eta}</td>
+        <td>
+  {job.job_type === 'AIR FREIGHT' ? job.flight_eta : job.eta}
+</td>
+            
+        
         <td className="actions-cell">
           <button 
             className="edit-btn"
@@ -1373,7 +1378,7 @@ const renderJobSummary = useCallback(() => {
                               { label: 'H/O Date:', value: formData.hoDate },
                               { label: 'Terms:', value: formData.terms },
                               { label: 'Consignee:', value: formData.consignee },
-                              { label: 'No of Cartoons:', value: formData.noOfCartoons },
+                             
                               { label: 'S/B No:', value: formData.sbNo },
                               { label: 'S/B Date:', value: formData.sbDate },
                               { label: 'POL:', value: formData.pol },

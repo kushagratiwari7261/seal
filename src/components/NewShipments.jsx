@@ -1,11 +1,9 @@
-// src/components/NewShipments.jsx
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { PDFDownloadLink } from '@react-pdf/renderer'; // Add this import
-import PDFGenerator from './PDFGenerator.jsx'; // Add this import
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import PDFGenerator from './PDFGenerator.jsx';
 
 import { supabase } from '../lib/supabaseClient';
 import './NewShipments.css';
-
 
 // Constants for better maintainability
 const SHIPMENT_TYPES = ['AIR FREIGHT', 'SEA FREIGHT', 'LAND', 'TRANSPORT', 'OTHERS'];
@@ -15,8 +13,16 @@ const CATEGORIES = [
   'CAREER', 'CAREER AGENT'
 ];
 
-// Initial form data
+// Trade directions
+const TRADE_DIRECTIONS = {
+  'AIR FREIGHT': ['EXPORT', 'IMPORT'],
+  'SEA FREIGHT': ['EXPORT', 'IMPORT'],
+  'LAND': ['EXPORT', 'IMPORT'],
+  'TRANSPORT': ['DOMESTIC'],
+  'OTHERS': ['GENERAL']
+};
 
+// Initial form data
 const INITIAL_FORM_DATA = {
   branch: 'CHENNAI (MAA)',
   department: 'FCL EXPORT',
@@ -30,7 +36,7 @@ const INITIAL_FORM_DATA = {
   pod: 'AEDXB-DUBAI/UNITED ARAB',
   pof: 'AEDXB-DUBAI/UNITED ARAB',
   hblNo: '',
-  jobNo: '', // Will be populated from dropdown
+  jobNo: '',
   etd: '',
   eta: '',
   incoterms: 'Cost and Freight-(CFR)',
@@ -50,6 +56,53 @@ const INITIAL_FORM_DATA = {
   grossWeight: '$00000',
   description: 'A PACK OF FURNITURES',
   remarks: '',
+  
+  // Trade direction
+  tradeDirection: 'EXPORT',
+  
+  // Air Freight specific fields
+  airport_of_departure: '',
+  airport_of_destination: '',
+  no_of_packages: '',
+  dimension_cms: '',
+  chargeable_weight: '',
+  client_no: '',
+  name_of_airline: '',
+  awb: '',
+  flight_from: '',
+  flight_to: '',
+  flight_eta: '',
+  invoiceNo: '',
+  invoiceDate: '',
+  notify_party: '',
+  
+  // Sea Freight specific fields
+  exporter: '',
+  importer: '',
+  stuffingDate: '',
+  hoDate: '',
+  terms: '',
+  sbNo: '',
+  sbDate: '',
+  destination: '',
+  commodity: '',
+  fob: '',
+  grWeight: '',
+  netWeight: '',
+  railOutDate: '',
+  containerNo: '',
+  noOfCntr: '',
+  sLine: '',
+  mblNo: '',
+  mblDate: '',
+  hblDt: '',
+  vessel: '',
+  voy: '',
+  sob: '',
+  ac: '',
+  billNo: '',
+  billDate: '',
+  ccPort: '',
 };
 
 const INITIAL_ORG_FORM_DATA = {
@@ -82,16 +135,15 @@ const NewShipments = () => {
   const [editingShipment, setEditingShipment] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [shipmentToDelete, setShipmentToDelete] = useState(null);
-  const [jobs, setJobs] = useState([]); // State to store jobs for dropdown
+  const [jobs, setJobs] = useState([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
-   const [generatePDF, setGeneratePDF] = useState(false);
-  const [pdfShipmentData, setPdfShipmentData] = useState(null); // Add this state to store data for PDF
+  const [generatePDF, setGeneratePDF] = useState(false);
+  const [pdfShipmentData, setPdfShipmentData] = useState(null);
   
   const tableContainerRef = useRef(null);
   const [maxHeight, setMaxHeight] = useState('auto');
   const handlePDFReady = useCallback((blob) => {
     console.log('PDF is ready for download', blob);
-    // You can add additional handling here if needed
   }, []);
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
   const [orgFormData, setOrgFormData] = useState(INITIAL_ORG_FORM_DATA);
@@ -102,7 +154,7 @@ const NewShipments = () => {
     2: ['branch', 'department', 'shipmentDate', 'client', 'shipper', 'consignee', 
         'por', 'pol', 'pod', 'pof', 'hblNo', 'jobNo', 'etd', 'eta', 'incoterms', 
         'serviceType', 'freight', 'payableAt', 'dispatchAt'],
-    3: [] // No required fields for summary
+    3: []
   }), []);
 
   // Fetch jobs from Supabase for dropdown
@@ -116,15 +168,96 @@ const NewShipments = () => {
       
       if (error) throw error;
       
-      setJobs(data || []);
+      console.log('Raw jobs data:', data);
+      const formattedJobs = (data || []).map(job => ({
+        id: job.id,
+        job_no: job.job_no,
+        job_no_display: job.job_no || `JOB-${job.id.toString().padStart(6, '0')}`,
+        client: job.client || '',
+        shipper: job.shipper || '',
+        consignee: job.consignee || '',
+        address: job.address || '',
+        por: job.por || '',
+        poi: job.poi || '',
+        pod: job.pod || '',
+        pof: job.pof || '',
+        pol: job.pol || '',
+        pdf: job.pdf || '',
+        hbl_no: job.hbl_no || '',
+        etd: job.etd || '',
+        eta: job.eta || '',
+        incoterms: job.incoterms || '',
+        service_type: job.service_type || '',
+        freight: job.freight || '',
+        payable_at: job.payable_at || '',
+        dispatch_at: job.dispatch_at || '',
+        carrier: job.carrier || '',
+        vessel_name: job.vessel_name || '',
+        no_of_res: job.no_of_res || '',
+        volume: job.volume || '',
+        gross_weight: job.gross_weight || '',
+        description: job.description || '',
+        remarks: job.remarks || '',
+        hs_code: job.hs_code || '',
+        branch: job.branch || '',
+        department: job.department || '',
+        job_type: job.job_type || '',
+        trade_direction: job.trade_direction || 'EXPORT',
+
+        // Air Freight fields
+        airport_of_departure: job.airport_of_departure || '',
+        airport_of_destination: job.airport_of_destination || '',
+        no_of_packages: job.no_of_packages || '',
+        dimension_cms: job.dimension_cms || '',
+        chargeable_weight: job.chargeable_weight || '',
+        client_no: job.client_no || '',
+        name_of_airline: job.name_of_airline || '',
+        awb: job.awb || '',
+        flight_from: job.flight_from || '',
+        flight_to: job.flight_to || '',
+        flight_eta: job.flight_eta || '',
+        invoiceNo: job.invoiceNo || '',
+        invoiceDate: job.invoice_date || '',
+        notify_party: job.notify_party || '',
+
+        // Sea Freight fields
+        exporter: job.exporter || '',
+        importer: job.importer || '',
+        stuffingDate: job.stuffingDate || '',
+        hoDate: job.hoDate || '',
+        terms: job.terms || '',
+        sbNo: job.sbNo || '',
+        sbDate: job.sbDate || '',
+        destination: job.destination || '',
+        commodity: job.commodity || '',
+        fob: job.fob || '',
+        grWeight: job.grWeight || '',
+        netWeight: job.netWeight || '',
+        railOutDate: job.railOutDate || '',
+        containerNo: job.containerNo || '',
+        noOfCntr: job.noOfCntr || '',
+        sLine: job.sLine || '',
+        mblNo: job.mblNo || '',
+        mblDate: job.mblDate || '',
+        hblDt: job.hblDt || '',
+        vessel: job.vessel || '',
+        voy: job.voy || '',
+        sob: job.sob || '',
+        ac: job.ac || '',
+        billNo: job.billNo || '',
+        billDate: job.billDate || '',
+        ccPort: job.ccPort || '',
+      }));
+      
+      console.log('Formatted jobs:', formattedJobs);
+      setJobs(formattedJobs);
     } catch (error) {
       console.error('Error fetching jobs:', error);
-      setError('Failed to load jobs');
+      setError('Failed to load jobs: ' + error.message);
     } finally {
       setIsLoadingJobs(false);
     }
   }, []);
-  
 
   // Fetch shipments from Supabase
   const fetchShipments = useCallback(async () => {
@@ -137,7 +270,6 @@ const NewShipments = () => {
       
       if (error) throw error;
       
-      // Map database fields to display fields with the structure you specified
       const mappedShipments = (data || []).map(shipment => ({
         id: shipment.id,
         shipmentNo: shipment.shipment_no || `${shipment.id.toString().padStart(6, '0')}`,
@@ -149,7 +281,6 @@ const NewShipments = () => {
         updatedAt: shipment.updated_at ? new Date(shipment.updated_at).toLocaleDateString() : '',
         etd: shipment.etd ? new Date(shipment.etd).toLocaleDateString() : '',
         eta: shipment.eta ? new Date(shipment.eta).toLocaleDateString() : '',
-        // Add all other fields for editing
         ...shipment
       }));
       
@@ -176,42 +307,106 @@ const NewShipments = () => {
     }
   }, [shipments]);
 
-  // Handle job selection from dropdown
-  const handleJobSelect = useCallback((jobNo) => {
-    if (!jobNo) return;
-    
-    const selectedJob = jobs.find(job => job.job_no === jobNo);
-    if (selectedJob) {
-      // Auto-fill form fields with job data
-      setFormData(prev => ({
-        ...prev,
-        jobNo: selectedJob.job_no,
-        client: selectedJob.client || prev.client,
-        shipper: selectedJob.shipper || prev.shipper,
-        consignee: selectedJob.consignee || prev.consignee,
-        por: selectedJob.por || prev.por,
-        poi: selectedJob.poi || prev.poi,
-        pod: selectedJob.pod || prev.pod,
-        pof: selectedJob.pof || prev.pof,
-        etd: selectedJob.etd || prev.etd,
-        eta: selectedJob.eta || prev.eta,
-        incoterms: selectedJob.incoterms || prev.incoterms,
-        serviceType: selectedJob.service_type || prev.serviceType,
-        freight: selectedJob.freight || prev.freight,
-        payableAt: selectedJob.payable_at || prev.payableAt,
-        dispatchAt: selectedJob.dispatch_at || prev.dispatchAt,
-        pol: selectedJob.pol || prev.pol,
-        pdf: selectedJob.pdf || prev.pdf,
-        carrier: selectedJob.carrier || prev.carrier,
-        vesselNameSummary: selectedJob.vessel_name_summary || prev.vesselNameSummary,
-        noOfRes: selectedJob.no_of_res || prev.noOfRes,
-        volume: selectedJob.volume || prev.volume,
-        grossWeight: selectedJob.gross_weight || prev.grossWeight,
-        description: selectedJob.description || prev.description,
-        remarks: selectedJob.remarks || prev.remarks,
-      }));
+  // Handle job selection and auto-fill form
+  const handleJobSelect = async (e) => {
+    const selectedJobId = e.target.value;
+    setFormData((prev) => ({ ...prev, jobNo: selectedJobId }));
+
+    if (!selectedJobId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("job_no", selectedJobId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching job:", error.message);
+        return;
+      }
+
+      if (data) {
+        // Update the form with all job fields
+        setFormData((prev) => ({
+          ...prev,
+          // Common job fields
+          branch: data.branch || "",
+          department: data.department || "",
+          shipmentDate: data.job_date || "",
+          client: data.client || "",
+          shipper: data.shipper || "",
+          consignee: data.consignee || "",
+          address: data.address || "",
+          por: data.por || "",
+          pol: data.pol || "",
+          pod: data.pod || "",
+          pof: data.pof || "",
+          hblNo: data.hbl_no || "",
+          etd: data.etd || "",
+          eta: data.eta || "",
+          incoterms: data.incoterms || "",
+          serviceType: data.service_type || "",
+          freight: data.freight || "",
+          payableAt: data.payable_at || "",
+          dispatchAt: data.dispatch_at || "",
+          tradeDirection: data.trade_direction || "EXPORT",
+
+          // Air Freight-specific fields
+          airport_of_departure: data.airport_of_departure || "",
+          airport_of_destination: data.airport_of_destination || "",
+          no_of_packages: data.no_of_packages || "",
+          grossWeight: data.gross_weight || "",
+          dimension_cms: data.dimension_cms || "",
+          chargeable_weight: data.chargeable_weight || "",
+          client_no: data.client_no || "",
+          name_of_airline: data.name_of_airline || "",
+          awb: data.awb || "",
+          flight_from: data.flight_from || "",
+          flight_to: data.flight_to || "",
+          flight_eta: data.flight_eta || "",
+          invoiceNo: data.invoiceNo || "",
+          invoiceDate: data.invoice_date || "",
+          notify_party: data.notify_party || "",
+
+          // Sea Freight-specific fields
+          exporter: data.exporter || "",
+          importer: data.importer || "",
+          stuffingDate: data.stuffingDate || "",
+          hoDate: data.hoDate || "",
+          terms: data.terms || "",
+          sbNo: data.sbNo || "",
+          sbDate: data.sbDate || "",
+          destination: data.destination || "",
+          commodity: data.commodity || "",
+          fob: data.fob || "",
+          grWeight: data.grWeight || "",
+          netWeight: data.netWeight || "",
+          railOutDate: data.railOutDate || "",
+          containerNo: data.containerNo || "",
+          noOfCntr: data.noOfCntr || "",
+          sLine: data.sLine || "",
+          mblNo: data.mblNo || "",
+          mblDate: data.mblDate || "",
+          hblDt: data.hblDt || "",
+          vessel: data.vessel || "",
+          voy: data.voy || "",
+          sob: data.sob || "",
+          ac: data.ac || "",
+          billNo: data.billNo || "",
+          billDate: data.billDate || "",
+          ccPort: data.ccPort || "",
+        }));
+        
+        // Set the shipment type based on the job type
+        if (data.job_type) {
+          setShipmentType(data.job_type);
+        }
+      }
+    } catch (err) {
+      console.error("Unexpected error fetching job:", err);
     }
-  }, [jobs]);
+  };
 
   // Validate current step before proceeding
   const validateStep = useCallback((step) => {
@@ -284,7 +479,6 @@ const NewShipments = () => {
 
   const handleShipmentTypeSelect = useCallback((type) => {
     setShipmentType(type);
-    // Clear shipment type validation error if any
     if (validationErrors.shipmentType) {
       setValidationErrors(prev => {
         const newErrors = {...prev};
@@ -304,13 +498,11 @@ const NewShipments = () => {
       
       if (error) throw error;
       
-      // Update the client field with the new organization name
       setFormData(prev => ({
         ...prev,
         client: data[0].name
       }));
       
-      // Clear any client validation error
       if (validationErrors.client) {
         setValidationErrors(prev => {
           const newErrors = {...prev};
@@ -319,7 +511,6 @@ const NewShipments = () => {
         });
       }
       
-      // Close the modal
       setShowOrgModal(false);
       setSuccess('Organization created successfully!');
     } catch (error) {
@@ -330,12 +521,10 @@ const NewShipments = () => {
   }, [orgFormData, validationErrors]);
 
   const handleConfirmShipment = useCallback(async () => {
-    // Final validation before creating shipment
     if (validateStep(activeStep)) {
       try {
         setLoading(true);
         
-        // Prepare shipment data for insertion
         const shipmentData = {
           branch: formData.branch,
           department: formData.department,
@@ -349,7 +538,7 @@ const NewShipments = () => {
           pod: formData.pod,
           pof: formData.pof,
           hbl_no: formData.hblNo,
-          job_no: formData.jobNo, // Added job_no field
+          job_no: formData.jobNo,
           etd: formData.etd,
           eta: formData.eta,
           incoterms: formData.incoterms,
@@ -368,12 +557,56 @@ const NewShipments = () => {
           description: formData.description,
           remarks: formData.remarks,
           shipment_type: shipmentType,
-          updated_at: new Date().toISOString()
+          trade_direction: formData.tradeDirection,
+          updated_at: new Date().toISOString(),
+          
+          // Air Freight fields
+          airport_of_departure: formData.airport_of_departure,
+          airport_of_destination: formData.airport_of_destination,
+          no_of_packages: formData.no_of_packages,
+          dimension_cms: formData.dimension_cms,
+          chargeable_weight: formData.chargeable_weight,
+          client_no: formData.client_no,
+          name_of_airline: formData.name_of_airline,
+          awb: formData.awb,
+          flight_from: formData.flight_from,
+          flight_to: formData.flight_to,
+          flight_eta: formData.flight_eta,
+          invoiceNo: formData.invoiceNo,
+          invoiceDate: formData.invoiceDate,
+          notify_party: formData.notify_party,
+          
+          // Sea Freight fields
+          exporter: formData.exporter,
+          importer: formData.importer,
+          stuffingDate: formData.stuffingDate,
+          hoDate: formData.hoDate,
+          terms: formData.terms,
+          sbNo: formData.sbNo,
+          sbDate: formData.sbDate,
+          destination: formData.destination,
+          commodity: formData.commodity,
+          fob: formData.fob,
+          grWeight: formData.grWeight,
+          netWeight: formData.netWeight,
+          railOutDate: formData.railOutDate,
+          containerNo: formData.containerNo,
+          noOfCntr: formData.noOfCntr,
+          sLine: formData.sLine,
+          mblNo: formData.mblNo,
+          mblDate: formData.mblDate,
+          hblDt: formData.hblDt,
+          vessel: formData.vessel,
+          voy: formData.voy,
+          sob: formData.sob,
+          ac: formData.ac,
+          billNo: formData.billNo,
+          billDate: formData.billDate,
+          ccPort: formData.ccPort,
         };
         
         let result;
         if (editingShipment) {
-          // Update existing shipment
           const { data: updatedShipment, error } = await supabase
             .from('shipments')
             .update(shipmentData)
@@ -383,7 +616,6 @@ const NewShipments = () => {
           if (error) throw error;
           result = updatedShipment;
         } else {
-          // Create new shipment
           const { data: newShipment, error } = await supabase
             .from('shipments')
             .insert([shipmentData])
@@ -393,21 +625,14 @@ const NewShipments = () => {
           result = newShipment;
         }
         
-        // Generate PDF
         setPdfShipmentData({
           ...shipmentData,
           shipmentNo: editingShipment ? editingShipment.shipmentNo : `MTD-${result?.[0]?.id?.toString().padStart(6, '0') || 'DOCUMENT'}`,
-          // Add any other fields needed for the PDF
         });
         
-        // Show PDF generation
         setGeneratePDF(true);
-        
-        // Close the form and reset
         handleCancel();
         setSuccess(editingShipment ? 'Shipment updated successfully!' : 'Shipment created successfully!');
-        
-        // Refresh the shipments list
         fetchShipments();
       } catch (error) {
         console.error('Error saving shipment:', error);
@@ -417,12 +642,12 @@ const NewShipments = () => {
       }
     }
   }, [formData, shipmentType, editingShipment, activeStep, validateStep, handleCancel, fetchShipments]);
+
   // Handle edit shipment
   const handleEditShipment = useCallback((shipment) => {
     setEditingShipment(shipment);
     setShipmentType(shipment.shipment_type);
     
-    // Map database fields to form fields
     const formDataFromShipment = {
       branch: shipment.branch,
       department: shipment.department,
@@ -436,7 +661,7 @@ const NewShipments = () => {
       pod: shipment.pod,
       pof: shipment.pof,
       hblNo: shipment.hbl_no,
-      jobNo: shipment.job_no, // Added jobNo field
+      jobNo: shipment.job_no,
       etd: shipment.etd,
       eta: shipment.eta,
       incoterms: shipment.incoterms,
@@ -454,11 +679,56 @@ const NewShipments = () => {
       grossWeight: shipment.gross_weight,
       description: shipment.description,
       remarks: shipment.remarks,
+      tradeDirection: shipment.trade_direction || 'EXPORT',
+      
+      // Air Freight fields
+      airport_of_departure: shipment.airport_of_departure,
+      airport_of_destination: shipment.airport_of_destination,
+      no_of_packages: shipment.no_of_packages,
+      dimension_cms: shipment.dimension_cms,
+      chargeable_weight: shipment.chargeable_weight,
+      client_no: shipment.client_no,
+      name_of_airline: shipment.name_of_airline,
+      awb: shipment.awb,
+      flight_from: shipment.flight_from,
+      flight_to: shipment.flight_to,
+      flight_eta: shipment.flight_eta,
+      invoiceNo: shipment.invoiceNo,
+      invoiceDate: shipment.invoiceDate,
+      notify_party: shipment.notify_party,
+      
+      // Sea Freight fields
+      exporter: shipment.exporter,
+      importer: shipment.importer,
+      stuffingDate: shipment.stuffingDate,
+      hoDate: shipment.hoDate,
+      terms: shipment.terms,
+      sbNo: shipment.sbNo,
+      sbDate: shipment.sbDate,
+      destination: shipment.destination,
+      commodity: shipment.commodity,
+      fob: shipment.fob,
+      grWeight: shipment.grWeight,
+      netWeight: shipment.netWeight,
+      railOutDate: shipment.railOutDate,
+      containerNo: shipment.containerNo,
+      noOfCntr: shipment.noOfCntr,
+      sLine: shipment.sLine,
+      mblNo: shipment.mblNo,
+      mblDate: shipment.mblDate,
+      hblDt: shipment.hblDt,
+      vessel: shipment.vessel,
+      voy: shipment.voy,
+      sob: shipment.sob,
+      ac: shipment.ac,
+      billNo: shipment.billNo,
+      billDate: shipment.billDate,
+      ccPort: shipment.ccPort,
     };
     
     setFormData(formDataFromShipment);
     setShowShipmentForm(true);
-    setActiveStep(2); // Start at port details step for editing
+    setActiveStep(2);
   }, []);
 
   // Handle delete shipment
@@ -475,8 +745,6 @@ const NewShipments = () => {
       setShowDeleteModal(false);
       setShipmentToDelete(null);
       setSuccess('Shipment deleted successfully!');
-      
-      // Refresh the shipments list
       fetchShipments();
     } catch (error) {
       console.error('Error deleting shipment:', error);
@@ -492,10 +760,102 @@ const NewShipments = () => {
     setShowDeleteModal(true);
   }, []);
 
-
+  // Render specific fields based on shipment type and trade direction
+  const renderSpecificFields = () => {
+    if (!shipmentType) return null;
+    
+    if (shipmentType === 'AIR FREIGHT') {
+      return (
+        <div className="specific-fields-section">
+          <h3>Air Freight Details - {formData.tradeDirection}</h3>
+          <div className="form-grid-two-column">
+            {[
+              { label: 'Airport of Departure', name: 'airport_of_departure', type: 'text' },
+              { label: 'Airport of Destination', name: 'airport_of_destination', type: 'text' },
+              { label: 'No of Packages', name: 'no_of_packages', type: 'number' },
+              { label: 'Dimension (CMS)', name: 'dimension_cms', type: 'text' },
+              { label: 'Chargeable Weight', name: 'chargeable_weight', type: 'number' },
+              { label: 'Client No', name: 'client_no', type: 'text' },
+              { label: 'Name of Airline', name: 'name_of_airline', type: 'text' },
+              { label: 'AWB', name: 'awb', type: 'text' },
+              { label: 'Flight From', name: 'flight_from', type: 'text' },
+              { label: 'Flight To', name: 'flight_to', type: 'text' },
+              { label: 'Flight ETA', name: 'flight_eta', type: 'datetime-local' },
+              { label: 'Invoice No', name: 'invoiceNo', type: 'text' },
+              { label: 'Invoice Date', name: 'invoiceDate', type: 'date' },
+              { label: 'Notify Party', name: 'notify_party', type: 'text' },
+            ].map((field, index) => (
+              <div key={index} className="form-group">
+                <label>{field.label}</label>
+                <input 
+                  type={field.type}
+                  name={field.name}
+                  value={formData[field.name]}
+                  onChange={handleInputChange}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    
+    if (shipmentType === 'SEA FREIGHT') {
+      return (
+        <div className="specific-fields-section">
+          <h3>Sea Freight Details - {formData.tradeDirection}</h3>
+          <div className="form-grid-two-column">
+            {[
+              { label: 'Exporter', name: 'exporter', type: 'text', condition: formData.tradeDirection === 'EXPORT' },
+              { label: 'Importer', name: 'importer', type: 'text', condition: formData.tradeDirection === 'IMPORT' },
+              { label: 'Invoice No', name: 'invoiceNo', type: 'text', condition: true },
+              { label: 'Invoice Date', name: 'invoiceDate', type: 'date', condition: true },
+              { label: 'Stuffing Date', name: 'stuffingDate', type: 'date', condition: true },
+              { label: 'H/O Date', name: 'hoDate', type: 'date', condition: true },
+              { label: 'Terms', name: 'terms', type: 'text', condition: true },
+              { label: 'S/B No', name: 'sbNo', type: 'text', condition: true },
+              { label: 'S/B Date', name: 'sbDate', type: 'date', condition: true },
+              { label: 'Destination', name: 'destination', type: 'text', condition: true },
+              { label: 'Commodity', name: 'commodity', type: 'text', condition: true },
+              { label: 'FOB', name: 'fob', type: 'text', condition: true },
+              { label: 'GR Weight', name: 'grWeight', type: 'number', condition: true },
+              { label: 'Net Weight', name: 'netWeight', type: 'number', condition: true },
+              { label: 'RAIL Out Date', name: 'railOutDate', type: 'date', condition: true },
+              { label: 'Container No', name: 'containerNo', type: 'text', condition: true },
+              { label: 'No of CNTR', name: 'noOfCntr', type: 'number', condition: true },
+              { label: 'S/Line', name: 'sLine', type: 'text', condition: true },
+              { label: 'MBL No', name: 'mblNo', type: 'text', condition: true },
+              { label: 'MBL Date', name: 'mblDate', type: 'date', condition: true },
+              { label: 'HBL DT', name: 'hblDt', type: 'date', condition: true },
+              { label: 'VESSEL', name: 'vessel', type: 'text', condition: true },
+              { label: 'VOY', name: 'voy', type: 'text', condition: true },
+              { label: 'SOB', name: 'sob', type: 'text', condition: true },
+              { label: 'A/C', name: 'ac', type: 'text', condition: true },
+              { label: 'Bill No', name: 'billNo', type: 'text', condition: true },
+              { label: 'Bill Date', name: 'billDate', type: 'date', condition: true },
+              { label: 'C/C Port', name: 'ccPort', type: 'text', condition: true },
+            ].map((field, index) => 
+              field.condition ? (
+                <div key={index} className="form-group">
+                  <label>{field.label}</label>
+                  <input 
+                    type={field.type}
+                    name={field.name}
+                    value={formData[field.name]}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              ) : null
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    return null;
+  };
 
   return (
-
     <div className="new-shipment-container">
       {generatePDF && pdfShipmentData && (
         <div style={{ textAlign: 'center', margin: '20px 0', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}>
@@ -517,8 +877,8 @@ const NewShipments = () => {
             Close
           </button>
         </div>
-        
       )}
+      
       {loading && (
         <div className="loading-overlay">
           <div className="loading-spinner">Loading...</div>
@@ -656,6 +1016,23 @@ const NewShipments = () => {
                 {activeStep === 2 && (
                   <div className="port-details-form">
                     <h2>Port Details</h2>
+                    
+                    {/* Trade Direction Selection */}
+                    {shipmentType && TRADE_DIRECTIONS[shipmentType] && (
+                      <div className="form-group">
+                        <label>Trade Direction <span className="required">*</span></label>
+                        <select 
+                          name="tradeDirection"
+                          value={formData.tradeDirection}
+                          onChange={handleInputChange}
+                        >
+                          {TRADE_DIRECTIONS[shipmentType].map((direction, index) => (
+                            <option key={index} value={direction}>{direction}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    
                     <div className="form-grid-two-column">
                       <div className="form-group">
                         <label>Branch <span className="required">*</span></label>
@@ -800,10 +1177,7 @@ const NewShipments = () => {
                         <select 
                           name="jobNo"
                           value={formData.jobNo}
-                          onChange={(e) => {
-                            handleInputChange(e);
-                            handleJobSelect(e.target.value);
-                          }}
+                          onChange={handleJobSelect}
                           className={validationErrors.jobNo ? 'error' : ''}
                         >
                           <option value="">Select a Job</option>
@@ -812,7 +1186,7 @@ const NewShipments = () => {
                           ) : (
                             jobs.map((job) => (
                               <option key={job.id} value={job.job_no}>
-                                {job.job_no} - {job.client}
+                                {job.job_no} - {job.client || 'No Client'} ({job.job_type || 'No Type'})
                               </option>
                             ))
                           )}
@@ -898,6 +1272,9 @@ const NewShipments = () => {
                       </div>
                     </div>
                     
+                    {/* Render specific fields based on shipment type */}
+                    {renderSpecificFields()}
+                    
                     <div className="client-os-info">
                       Client O/S: Credit Term: CASH | Total O/S: 46000 | Over Due O/S: 46000
                     </div>
@@ -945,7 +1322,7 @@ const NewShipments = () => {
                           <span className="label">PDF:</span>
                           <span className="value">{formData.pof}</span>
                         </div>
-                                                <div className="booking-info-row">
+                        <div className="booking-info-row">
                           <span className="label">Carrier:</span>
                           <span className="value">{formData.carrier}</span>
                           <span className="label">Vessel Name:</span>
