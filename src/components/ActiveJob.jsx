@@ -22,35 +22,35 @@ const generateJobNumber = () => {
 
 // Initial form data
 const INITIAL_FORM_DATA = {
-  branch: 'CHENNAI (MAA)',
-  department: 'FCL EXPORT',
+  branch: '',
+  department: '',
   jobDate: new Date().toISOString().split('T')[0], // Current date as default
-  client: 'AMAZON PVT LMD',
-  shipper: 'AMAZON PVT LMD',
-  consignee: 'FRESA TECHNOLOGIES FZE',
-  address: 'PRIMARY, OFFICE, SHIPPING/',
-  por: 'INMAA-CHENNAI (EX',
-  poi: 'INMAA-CHENNAI (EX',
-  pod: 'AEDXB-DUBAI/UNITED ARAB',
-  pof: 'AEDXB-DUBAI/UNITED ARAB',
+  client: '',
+  shipper: '',
+  consignee: '',
+  address: '',
+  por: '',
+  poi: '',
+  pod: '',
+  pof: '',
   jobNo: generateJobNumber(), // Auto-generated job number
   etd: '',
   eta: '',
-  incoterms: 'Cost and Freight-(CFR)',
-  serviceType: 'FCL',
-  freight: 'Prepaid',
-  payableAt: 'CHENNAI (EX MADRAS)',
-  dispatchAt: 'CHENNAI (EX MADRAS)',
+  incoterms: '',
+  serviceType: '',
+  freight: '',
+  payableAt: '',
+  dispatchAt: '',
   
   // Sea freight fields
-  pol: 'CHENNAI (EX MADRAS), INDIA',
-  pdf: 'DUBAI, UAE',
-  carrier: 'SEAWAYS SHIPPING AND LOGISTICS LIMITED',
-  vesselNameSummary: 'TIGER SEA / 774',
-  noOfRes: '$000',
-  volume: '$000',
-  grossWeight: '$00000',
-  description: 'A PACK OF FURNITURES',
+  pol: '',
+  pdf: '',
+  carrier: '',
+  vesselNameSummary: '',
+  noOfRes: '',
+  volume: '',
+  grossWeight: '',
+  description: '',
   remarks: '',
   
   // Sea freight step 2 fields
@@ -157,6 +157,8 @@ const ActiveJob = () => {
   const [editingJob, setEditingJob] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [jobToDelete, setJobToDelete] = useState(null);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [showJobSummary, setShowJobSummary] = useState(false);
 
   // Memoize required fields based on job type
   const requiredFields = useMemo(() => {
@@ -196,6 +198,27 @@ const ActiveJob = () => {
     }
   }, [jobType]);
 
+  // Function to get location fields based on job type
+  const getLocationFields = useCallback((job) => {
+    switch(job.job_type) {
+      case 'AIR FREIGHT':
+        return {
+          from: job.airport_of_departure,
+          to: job.airport_of_destination
+        };
+      case 'TRANSPORT':
+        return {
+          from: job.from,
+          to: job.to
+        };
+      default: // SEA FREIGHT and OTHERS
+        return {
+          from: job.pol,
+          to: job.pod
+        };
+    }
+  }, []);
+
   // Fetch jobs from Supabase
   const fetchJobs = useCallback(async () => {
     try {
@@ -209,29 +232,57 @@ const ActiveJob = () => {
       if (error) throw error;
       
       // Map database fields to display fields
-      const mappedJobs = (data || []).map(job => ({
-        id: job.id,
+      const mappedJobs = (data || []).map(job => {
+        const locationFields = getLocationFields(job);
+        
+        return {
+         id: job.id,
         jobNo: job.job_no,
         client: job.client,
-        pol: job.pol,
-        pod: job.pod,
+        from: locationFields.from,
+        to: locationFields.to,
         createdAt: job.created_at ? new Date(job.created_at).toLocaleDateString() : '',
         updatedAt: job.updated_at ? new Date(job.updated_at).toLocaleDateString() : '',
         eta: job.flight_eta ? new Date(job.flight_eta).toLocaleDateString() : job.eta ? new Date(job.eta).toLocaleDateString() : '',
         jobType: job.job_type,
         tradeDirection: job.trade_direction,
-        // Add all other fields for editing
+        
+        // Include all fields that might be needed for the summary view
+        shipper: job.shipper,
+        consignee: job.consignee,
+        exporter: job.exporter,
+        importer: job.importer,
+        no_of_packages: job.no_of_packages,
+        gross_weight: job.gross_weight,
+        chargeable_weight: job.chargeable_weight,
+        name_of_airline: job.name_of_airline,
+        awb: job.awb,
+        airport_of_departure: job.airport_of_departure,
+        airport_of_destination: job.airport_of_destination,
+        shipper_name: job.shipper_name,
+        party_name: job.party_name,
+        transporter: job.transporter,
+        driver_name: job.driver_name,
+        vehicle_billing_amount: job.vehicle_billing_amount,
+        amount: job.amount,
+        volume: job.volume,
+        container_no: job.container_no,
+        vessel: job.vessel,
+        pol: job.pol,
+        pod: job.pod,
+        
+        // Add all other original fields from the database
         ...job
-      }));
-      
-      setJobs(mappedJobs);
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+      };
+    });
+    
+    setJobs(mappedJobs);
+  } catch (error) {
+    setError(error.message);
+  } finally {
+    setLoading(false);
+  }
+}, [getLocationFields]);
   // Load jobs on component mount
   useEffect(() => {
     fetchJobs();
@@ -653,8 +704,25 @@ const ActiveJob = () => {
     setShowDeleteModal(true);
   }, []);
 
+  // Handle job selection for summary view
+  const handleJobSelect = useCallback((job) => {
+    setSelectedJob(job);
+    setShowJobSummary(true);
+  }, []);
+
+  // Get column headers based on job type
+// Function to get location column headers based on job type
+const getLocationColumnHeaders = useCallback((jobType) => {
+  if (jobType === 'AIR FREIGHT') {
+    return ['Airport of Departure', 'Airport of Destination'];
+  } else if (jobType === 'TRANSPORT') {
+    return ['From', 'To'];
+  } else {
+    return ['POL', 'POD'];
+  }
+}, []);
   // Render step 3 fields based on job type
-const renderStep3Fields = useCallback(() => {
+  const renderStep3Fields = useCallback(() => {
     if (jobType === 'AIR FREIGHT') {
       return (
         <div className="port-details-form">
@@ -770,8 +838,8 @@ const renderStep3Fields = useCallback(() => {
               { label: 'No of Cartoons', name: 'noOfCartoons', type: 'number', condition: true },
               { label: 'S/B No', name: 'sbNo', type: 'text', condition: true },
               { label: 'S/B Date', name: 'sbDate', type: 'date', condition: true },
-              { label: 'POL', name: 'pol', type: 'text', condition: true },
-              { label: 'POD', name: 'pod', type: 'text', condition: true },
+              { label: 'From', name: 'pol', type: 'text', condition: true },
+              { label: 'To', name: 'pod', type: 'text', condition: true },
               { label: 'Destination', name: 'destination', type: 'text', condition: true },
               { label: 'Commodity', name: 'commodity', type: 'text', condition: true },
               { label: 'FOB', name: 'fob', type: 'text', condition: true },
@@ -822,6 +890,190 @@ const renderStep3Fields = useCallback(() => {
     }
   }, [jobType, tradeDirection, formData, handleInputChange, validationErrors]);
 
+  // Render job summary based on job type
+const renderJobSummary = useCallback(() => {
+  if (!selectedJob) return null;
+  
+  const locationHeaders = getLocationColumnHeaders(selectedJob.job_type);
+  
+  // Helper function to safely get values with fallbacks
+  const getValue = (value) => value || 'N/A';
+  
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content job-summary-modal">
+        <div className="modal-header">
+          <h2>Job Summary - {getValue(selectedJob.jobNo)}</h2>
+          <button 
+            className="close-button"
+            onClick={() => setShowJobSummary(false)}
+          >
+            ×
+          </button>
+        </div>
+        
+        <div className="modal-body job-summary-body">
+          <div className="summary-section">
+            <h3>Basic Information</h3>
+            <div className="summary-grid">
+              <div className="summary-row">
+                <span className="label">Job Type:</span>
+                <span className="value">{getValue(selectedJob.job_type)}</span>
+              </div>
+              <div className="summary-row">
+                <span className="label">Trade Direction:</span>
+                <span className="value">{getValue(selectedJob.tradeDirection)}</span>
+              </div>
+              <div className="summary-row">
+                <span className="label">Client:</span>
+                <span className="value">{getValue(selectedJob.client)}</span>
+              </div>
+              <div className="summary-row">
+                <span className="label">Job Number:</span>
+                <span className="value">{getValue(selectedJob.jobNo)}</span>
+              </div>
+              <div className="summary-row">
+                <span className="label">{locationHeaders[0]}:</span>
+                <span className="value">
+                  {selectedJob.job_type === 'AIR FREIGHT' ? getValue(selectedJob.airport_of_departure) : 
+                   selectedJob.job_type === 'TRANSPORT' ? getValue(selectedJob.from) : 
+                   getValue(selectedJob.pol)}
+                </span>
+              </div>
+              <div className="summary-row">
+                <span className="label">{locationHeaders[1]}:</span>
+                <span className="value">
+                  {selectedJob.job_type === 'AIR FREIGHT' ? getValue(selectedJob.airport_of_destination) : 
+                   selectedJob.job_type === 'TRANSPORT' ? getValue(selectedJob.to) : 
+                   getValue(selectedJob.pod)}
+                </span>
+              </div>
+              <div className="summary-row">
+                <span className="label">Created:</span>
+                <span className="value">{getValue(selectedJob.createdAt)}</span>
+              </div>
+              <div className="summary-row">
+                <span className="label">Last Updated:</span>
+                <span className="value">{getValue(selectedJob.updatedAt)}</span>
+              </div>
+              <div className="summary-row">
+                <span className="label">ETA:</span>
+                <span className="value">{getValue(selectedJob.eta)}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="summary-section">
+            <h3>Details</h3>
+            {selectedJob.jobType === 'AIR FREIGHT' ? (
+              <div className="summary-grid">
+                <div className="summary-row">
+                  <span className="label">Shipper:</span>
+                  <span className="value">{getValue(selectedJob.shipper)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Consignee:</span>
+                  <span className="value">{getValue(selectedJob.consignee)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Notify Party:</span>
+                  <span className="value">{getValue(selectedJob.notify_party)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">No of Packages:</span>
+                  <span className="value">{getValue(selectedJob.no_of_packages)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Gross Weight:</span>
+                  <span className="value">{getValue(selectedJob.gross_weight)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Chargeable Weight:</span>
+                  <span className="value">{getValue(selectedJob.chargeable_weight)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Airline:</span>
+                  <span className="value">{getValue(selectedJob.name_of_airline)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">AWB:</span>
+                  <span className="value">{getValue(selectedJob.awb)}</span>
+                </div>
+              </div>
+            ) : selectedJob.jobType === 'TRANSPORT' ? (
+              <div className="summary-grid">
+                <div className="summary-row">
+                  <span className="label">Shipper Name:</span>
+                  <span className="value">{getValue(selectedJob.shipper_name)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Party Name:</span>
+                  <span className="value">{getValue(selectedJob.party_name)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Transporter:</span>
+                  <span className="value">{getValue(selectedJob.transporter)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Driver Name:</span>
+                  <span className="value">{getValue(selectedJob.driver_name)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Vehicle Billing Amount:</span>
+                  <span className="value">{getValue(selectedJob.vehicle_billing_amount)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Amount:</span>
+                  <span className="value">{getValue(selectedJob.amount)}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="summary-grid">
+                <div className="summary-row">
+                  <span className="label">Shipper:</span>
+                  <span className="value">{getValue(selectedJob.shipper)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Consignee:</span>
+                  <span className="value">{getValue(selectedJob.consignee)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">{selectedJob.tradeDirection === 'EXPORT' ? 'Exporter' : 'Importer'}:</span>
+                  <span className="value">
+                    {selectedJob.tradeDirection === 'EXPORT' ? 
+                     getValue(selectedJob.exporter) : 
+                     getValue(selectedJob.importer)}
+                  </span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Vessel:</span>
+                  <span className="value">{getValue(selectedJob.vessel)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Volume:</span>
+                  <span className="value">{getValue(selectedJob.volume)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="label">Container No:</span>
+                  <span className="value">{getValue(selectedJob.container_no)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="modal-footer">
+          <button 
+            className="close-summary-button"
+            onClick={() => setShowJobSummary(false)}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}, [selectedJob, getLocationColumnHeaders]);
   return (
     <>
       {loading && (
@@ -858,59 +1110,73 @@ const renderStep3Fields = useCallback(() => {
           style={{ maxHeight, overflowY: 'auto' }}
         >
           <table className="activity-table">
-            <thead>
-              <tr>
-                <th>Job No.</th>
-                <th>Client</th>
-                <th>POL</th>
-                <th>POD</th>
-                <th>Created At</th>
-                <th>Updated At</th>
-                <th>ETA</th>
-                <th>Type</th>
-                <th>Direction</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
+       <thead>
+  <tr>
+    <th>Job No.</th>
+    <th>Client</th>
+    <th>Type</th>
+    <th>Direction</th>
+    <th>From</th>
+    <th>To</th>
+    <th>Created At</th>
+    <th>Updated At</th>
+    <th>ETA</th>
+    <th>Actions</th>
+  </tr>
+</thead>
             <tbody>
-              {jobs.length > 0 ? (
-                jobs.map((job, index) => (
-                  <tr key={index}>
-                    <td>{job.jobNo}</td>
-                    <td>{job.client}</td>
-                    <td>{job.pol}</td>
-                    <td>{job.pod}</td>
-                    <td>{job.createdAt}</td>
-                    <td>{job.updatedAt}</td>
-                    <td>{job.eta}</td>
-                    <td>{job.jobType}</td>
-                    <td>{job.tradeDirection}</td>
-                    <td className="actions-cell">
-                      <button 
-                        className="edit-btn"
-                        onClick={() => handleEditJob(job)}
-                        title="Edit Job"
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        className="delete-btn"
-                        onClick={() => confirmDelete(job)}
-                        title="Delete Job"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="10" style={{textAlign: 'center', padding: '20px'}}>
-                    No active jobs found
-                  </td>
-                </tr>
-              )}
-            </tbody>
+  {jobs.length > 0 ? (
+    jobs.map((job, index) => (
+      <tr key={index} onClick={() => handleJobSelect(job)} className="job-row">
+        <td>{job.jobNo}</td>
+        <td>{job.client}</td>
+        <td>{job.job_type}</td>
+        <td>{job.tradeDirection}</td>
+        <td>
+          {job.job_type === 'AIR FREIGHT' ? job.airport_of_departure : 
+           job.job_type === 'TRANSPORT' ? job.from : 
+           job.pol}
+        </td>
+        <td>
+          {job.job_type === 'AIR FREIGHT' ? job.airport_of_destination : 
+           job.job_type === 'TRANSPORT' ? job.to : 
+           job.pod}
+        </td>
+        <td>{job.createdAt}</td>
+        <td>{job.updatedAt}</td>
+        <td>{job.eta}</td>
+        <td className="actions-cell">
+          <button 
+            className="edit-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditJob(job);
+            }}
+            title="Edit Job"
+          >
+            Edit
+          </button>
+          <button 
+            className="delete-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              confirmDelete(job);
+            }}
+            title="Delete Job"
+          >
+            Delete
+          </button>
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan="10" style={{textAlign: 'center', padding: '20px'}}>
+        No active jobs found
+      </td>
+    </tr>
+  )}
+</tbody>
           </table>
         </div>
       </div>
@@ -987,24 +1253,17 @@ const renderStep3Fields = useCallback(() => {
 
                 {activeStep === 3 && renderStep3Fields()}
 
-              {activeStep === 4 && (
-    <div className="summary-step">
-      <h2>Summary - {tradeDirection} - {jobType}</h2>
+                {activeStep === 4 && (
+                  <div className="summary-step">
+                    <h2>Summary - {tradeDirection} - {jobType}</h2>
                     
                     <div className="client-branch-section">
                       <div className="client-info">
-                        <span className="label">Client</span>
-                        <span className="value">{formData.client}</span>
+                        <span className="label">Client No</span>
+                        <span className="value">{formData.client_no}</span>
                       </div>
-                      <div className="branch-info">
-                        <span className="label">Branch</span>
-                        <span className="value">{formData.branch}</span>
-                      </div>
-                      <div className="department-info">
-                        <span className="label">Department</span>
-                        <span className="value">{formData.department}</span>
-                      </div>
-                    </div>
+                 
+                </div>
 
                     {jobType === 'AIR FREIGHT' ? (
                       <>
@@ -1025,6 +1284,7 @@ const renderStep3Fields = useCallback(() => {
                               { label: 'Notify Party:', value: formData.notify_party },
                               { label: 'Airport of Departure:', value: formData.airport_of_departure },
                               { label: 'Airport of Destination:', value: formData.airport_of_destination },
+                             
                               { label: 'No of Packages:', value: formData.no_of_packages },
                               { label: 'Gross Weight:', value: formData.grossWeight },
                               { label: 'Dimension (CMS):', value: formData.dimension_cms },
@@ -1314,6 +1574,8 @@ const renderStep3Fields = useCallback(() => {
           </div>
         </div>
       )}
+      
+        {showJobSummary && renderJobSummary()}
     </>
   );
 };
