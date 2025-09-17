@@ -1,10 +1,10 @@
 // src/components/PDFGenerator.js
 import React from 'react';
-import { Document, Page, Text, View, Image, StyleSheet, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import { format } from 'date-fns';
 
-// Register fonts if needed (you might need to install additional dependencies)
-// Font.register({ family: 'Roboto', src: '/path/to/roboto.ttf' });
+// Import the logo directly
+import logo from './seal.png';
 
 const styles = StyleSheet.create({
   page: {
@@ -112,11 +112,20 @@ const styles = StyleSheet.create({
 });
 
 const PDFGenerator = ({ shipmentData }) => {
-  // Filter out empty charges
-  const validCharges = shipmentData.charges ? 
-    shipmentData.charges.filter(charge => 
-      charge.description && charge.amount !== undefined && charge.amount !== null && charge.amount !== ''
-    ) : [];
+  // Format dates for display
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    try {
+      return format(new Date(dateString), 'dd/MM/yyyy');
+    } catch (error) {
+      return dateString;
+    }
+  };
+
+  // Extract data with proper field mappings
+  const getField = (fieldName, defaultValue = 'N/A') => {
+    return shipmentData[fieldName] || defaultValue;
+  };
 
   return (
     <Document>
@@ -125,21 +134,23 @@ const PDFGenerator = ({ shipmentData }) => {
         <View style={styles.header}>
           <Image 
             style={styles.logo} 
-            src="/seal.png" // Make sure this path is correct
+            src={logo}
           />
           <View>
             <Text style={styles.title}>MULTIMODAL TRANSPORT DOCUMENT</Text>
-            <Text>MTD Registration No.: {shipmentData.mtdNumber || 'MTD/DOS/566/JAN/2028'}</Text>
-            <Text>CN: {shipmentData.cnNumber || 'U630130L1990PTC042315'}</Text>
+            <Text>MTD Registration No.: {getField('mtdNumber')}</Text>
+            <Text>CN: {getField('cnNumber')}</Text>
+            <Text>Shipment No: {getField('shipment_no')}</Text>
+            <Text>Job No: {getField('job_no')}</Text>
           </View>
         </View>
 
         {/* Shipper Information */}
         <View style={styles.section}>
           <Text style={styles.subtitle}>Shipper</Text>
-          <Text>{shipmentData.shipper?.name || 'FIE SPHEROTECH'}</Text>
-          <Text>{shipmentData.shipper?.address || 'PLOT NO.6,7,8,18 & SHREE LAXM CO-OP INDUSTRIAL ESTATE LTD. HATKAMANGALE - 416109,DIST - KOLHAPUR MAHARASHITRA - INDIA'}</Text>
-          <Text>TEL: {shipmentData.shipper?.tel || '(0230)2366271,2366215'} FAX: {shipmentData.shipper?.fax || '(0230)2366133'}</Text>
+          <Text>{getField('shipper')}</Text>
+          <Text>{getField('address')}</Text>
+          <Text>TEL: {getField('shipper_tel')} FAX: {getField('shipper_fax')}</Text>
         </View>
 
         {/* Freight Forwarder Information */}
@@ -154,41 +165,50 @@ const PDFGenerator = ({ shipmentData }) => {
         {/* Consignee Information */}
         <View style={styles.section}>
           <Text style={styles.subtitle}>Consignee (of order):</Text>
-          <Text>{shipmentData.consignee?.name || 'THAI SENG TRADING CO., LTD.'}</Text>
-          <Text>{shipmentData.consignee?.address || '10-8,OBASE-CHO TENNOJI-KU,OSAKA JAPAN'}</Text>
-          <Text>K.A. {shipmentData.consignee?.contact || 'MR.MOTOHIKO FUKUNAGA'}</Text>
-          <Text>TEL {shipmentData.consignee?.tel || '(81) 6-6796-9359'}</Text>
+          <Text>{getField('consignee')}</Text>
+          <Text>{getField('consignee_address')}</Text>
+          <Text>K.A. {getField('consignee_contact')}</Text>
+          <Text>TEL {getField('consignee_tel')}</Text>
         </View>
 
         {/* Notify Party */}
         <View style={styles.section}>
           <Text style={styles.subtitle}>Notify Party:</Text>
-          <Text>{shipmentData.notifyParty?.name || 'THAI SENG TRADING CO., LTD.'}</Text>
-          <Text>{shipmentData.notifyParty?.address || '10-8,OBASE-CHO TENNOJI-KU,OSAKA JAPAN'}</Text>
-          <Text>K.A. {shipmentData.notifyParty?.contact || 'MR.MOTOHIKO FUKUNAGA'}</Text>
-          <Text>TEL {shipmentData.notifyParty?.tel || '(81) 6-6796-9359'}</Text>
+          <Text>{getField('notify_party')}</Text>
+          <Text>{getField('notify_party_address')}</Text>
+          <Text>K.A. {getField('notify_party_contact')}</Text>
+          <Text>TEL {getField('notify_party_tel')}</Text>
         </View>
 
         {/* Plan of Acceptance and Shipping Details */}
         <View style={styles.section}>
           <Text style={styles.subtitle}>Plan of Acceptance</Text>
-          <Text>{shipmentData.planOfAcceptance || 'NHAVA SHEVA, INDIA'}</Text>
+          <Text>{getField('planOfAcceptance')}</Text>
           
           <View style={[styles.row, {marginTop: 10}]}>
             <View style={styles.col}>
-              <Text><Text style={styles.label}>Vessel:</Text> {shipmentData.vessel || 'WAN HAI 512 / E115'}</Text>
+              <Text><Text style={styles.label}>Vessel:</Text> {getField('vessel')}</Text>
             </View>
             <View style={styles.col}>
-              <Text><Text style={styles.label}>Port of Loading:</Text> {shipmentData.portOfLoading || 'NHAVA SHEVA, INDIA'}</Text>
+              <Text><Text style={styles.label}>Port of Loading:</Text> {getField('pol')}</Text>
             </View>
           </View>
           
           <View style={styles.row}>
             <View style={styles.col}>
-              <Text><Text style={styles.label}>Port of Discharge:</Text> {shipmentData.portOfDischarge || 'YOKOHAMA, JAPAN'}</Text>
+              <Text><Text style={styles.label}>Port of Discharge:</Text> {getField('pod')}</Text>
             </View>
             <View style={styles.col}>
-              <Text><Text style={styles.label}>Port of Delivery:</Text> {shipmentData.portOfDelivery || 'YOKOHAMA, JAPAN'}</Text>
+              <Text><Text style={styles.label}>Port of Delivery:</Text> {getField('pof')}</Text>
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={styles.col}>
+              <Text><Text style={styles.label}>ETD:</Text> {formatDate(getField('etd'))}</Text>
+            </View>
+            <View style={styles.col}>
+              <Text><Text style={styles.label}>ETA:</Text> {formatDate(getField('eta'))}</Text>
             </View>
           </View>
         </View>
@@ -197,71 +217,36 @@ const PDFGenerator = ({ shipmentData }) => {
         <View style={styles.section}>
           <Text style={styles.subtitle}>Container Marks & Number No(s)</Text>
           <Text>SAID TO CONTAIN</Text>
-          <Text>{shipmentData.packages || '15 (FIFTEEN BOXES ONLY)'}</Text>
-          <Text>{shipmentData.goodsDescription || 'CI CASTING (SIDE COVER R, SIDE COVER C, BALANCE WEIGHT, MAIN BIG RETAINER, REAR COVER, SUCTION VALVE BASE, REAR BEARING COVER & REAR BEARING HOLDER)'}</Text>
-          <Text>INV. NO.: {shipmentData.invoiceNumber || '12/FSE/XP/2025-2026'} DT. {shipmentData.invoiceDate || '13/08/2025'}</Text>
-          <Text>S/B NO.: {shipmentData.sbNumber || '448801'} DT. {shipmentData.sbDate || '14/08/2025'}</Text>
-          <Text>HS CODE: {shipmentData.hsCode || '73251000'}</Text>
+          <Text>{getField('no_of_packages')} packages</Text>
+          <Text>{getField('description')}</Text>
+          <Text>INV. NO.: {getField('invoiceNo')} DT. {formatDate(getField('invoiceDate'))}</Text>
+          <Text>S/B NO.: {getField('sbNo')} DT. {formatDate(getField('sbDate'))}</Text>
+          <Text>HS CODE: {getField('hs_code')}</Text>
+          <Text>Commodity: {getField('commodity')}</Text>
         </View>
 
         {/* Weight and Measurement */}
         <View style={styles.section}>
-          <Text style={styles.subtitle}>SOLD TO WEIGH/MEASURE</Text>
-          <Text>{shipmentData.weight || '5774.000 KGS'} NET WT.</Text>
-          <Text>{shipmentData.grossWeight || '8290.000 KGS'}</Text>
+          <Text style={styles.subtitle}>WEIGHT/MEASUREMENT</Text>
+          <Text>Gross Weight: {getField('gross_weight')} kg</Text>
+          <Text>Net Weight: {getField('netWeight')} kg</Text>
+          <Text>Volume: {getField('volume')} m³</Text>
+          <Text>Chargeable Weight: {getField('chargeable_weight')} kg</Text>
         </View>
 
         {/* Container Details */}
         <View style={styles.section}>
           <Text style={styles.subtitle}>Container No/Seal No</Text>
-          <Text>{shipmentData.containerNumber || 'WHISU2266815 205DB6 WHA1382852'}</Text>
-          <Text>{shipmentData.boxNumbers || 'BOX NO.1,2,3,4,5,6,7,8,9,10,11,12,13,14 & 15'}</Text>
+          <Text>{getField('containerNo')}</Text>
+          <Text>No. of Containers: {getField('noOfCntr')}</Text>
+          <Text>Container Details: {getField('container_details')}</Text>
         </View>
-
-        {/* Charges Section - Only show if there are valid charges */}
-        {validCharges.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.subtitle}>Charges</Text>
-            <View style={styles.table}>
-              <View style={styles.tableRow}>
-                <View style={styles.tableColHeader}>
-                  <Text>Description</Text>
-                </View>
-                <View style={styles.tableColHeader}>
-                  <Text>Amount</Text>
-                </View>
-                <View style={styles.tableColHeader}>
-                  <Text>Currency</Text>
-                </View>
-                <View style={styles.tableColHeader}>
-                  <Text>Payment Terms</Text>
-                </View>
-              </View>
-              {validCharges.map((charge, index) => (
-                <View style={styles.tableRow} key={index}>
-                  <View style={styles.tableCol}>
-                    <Text>{charge.description}</Text>
-                  </View>
-                  <View style={styles.tableCol}>
-                    <Text>{charge.amount}</Text>
-                  </View>
-                  <View style={styles.tableCol}>
-                    <Text>{charge.currency || 'USD'}</Text>
-                  </View>
-                  <View style={styles.tableCol}>
-                    <Text>{charge.paymentTerms || 'Prepaid'}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
 
         {/* Payment Terms */}
         <View style={styles.section}>
-          <Text>{shipmentData.originCharges || '"ORIGIN THC PREPAID"'}</Text>
-          <Text>{shipmentData.oceanFreight || '"OCEAN FREIGHT COLLECT"'}</Text>
-          <Text>{shipmentData.destinationCharges || '"ALL DESTINATION CHARGES ON CONSIGNEE ACCOUNT"'}</Text>
+          <Text>Incoterms: {getField('incoterms')}</Text>
+          <Text>Service Type: {getField('service_type')}</Text>
+          <Text>Freight: {getField('freight')}</Text>
           <Text style={styles.note}>DESTINATION ANCILLARY CHARGES TO CONSIGNEE'S ACCOUNT</Text>
           <Text style={styles.note}>CONSIGNEE/CONSIGNOR ARE ADVISED TO PURCHASE COMPREHENSIVE INSURANCE COVER TO PROTECT THEIR INTEREST IN ALL EVENTS</Text>
         </View>
@@ -273,8 +258,8 @@ const PDFGenerator = ({ shipmentData }) => {
           
           <View style={styles.row}>
             <View style={styles.col}>
-              <Text>Freight Amount: {shipmentData.freightAmount || 'To be determined'}</Text>
-              <Text>Freight Payable at: {shipmentData.freightPayableAt || '03 (THREE)'}</Text>
+              <Text>Freight Amount: {getField('freight_amount')}</Text>
+              <Text>Freight Payable at: {getField('payable_at')}</Text>
             </View>
           </View>
         </View>
@@ -282,14 +267,22 @@ const PDFGenerator = ({ shipmentData }) => {
         {/* Delivery Agent */}
         <View style={styles.section}>
           <Text style={styles.subtitle}>Delivery Agent:</Text>
-          <Text>{shipmentData.deliveryAgent?.name || 'NIHON HOSO UNYU CO., LTD.'}</Text>
-          <Text>{shipmentData.deliveryAgent?.address || '2F, BRIGHT EAST SHIBAURA, 3-18-21 KAIGAN, MINATO-KU, TOKYO 108-0022, JAPAN'}</Text>
-          <Text>TEL: {shipmentData.deliveryAgent?.tel || '81-3-6858-0321'} FAX: {shipmentData.deliveryAgent?.fax || '81-3-6852-6161'}</Text>
+          <Text>{getField('delivery_agent')}</Text>
+          <Text>{getField('delivery_agent_address')}</Text>
+          <Text>TEL: {getField('delivery_agent_tel')} FAX: {getField('delivery_agent_fax')}</Text>
+        </View>
+
+        {/* Additional Information */}
+        <View style={styles.section}>
+          <Text>Carrier: {getField('carrier')}</Text>
+          <Text>MBL No: {getField('mblNo')}</Text>
+          <Text>HBL No: {getField('hbl_no')}</Text>
+          <Text>Remarks: {getField('remarks')}</Text>
         </View>
 
         {/* Jurisdiction */}
         <View style={styles.section}>
-          <Text>Subject to {shipmentData.jurisdiction || 'Delhi'} Jurisdiction</Text>
+          <Text>Subject to {getField('jurisdiction')} Jurisdiction</Text>
         </View>
 
         {/* Signatures */}
