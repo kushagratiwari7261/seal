@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import PDFGenerator from './PDFGenerator.jsx';
-
 import { supabase } from '../lib/supabaseClient';
 import './NewShipments.css';
 
@@ -157,6 +156,12 @@ const NewShipments = () => {
     3: []
   }), []);
 
+  // Filter jobs by shipment type
+  const filteredJobs = useMemo(() => {
+    if (!shipmentType) return jobs;
+    return jobs.filter(job => job.job_type === shipmentType);
+  }, [jobs, shipmentType]);
+
   // Fetch jobs from Supabase for dropdown
   const fetchJobs = useCallback(async () => {
     try {
@@ -292,6 +297,16 @@ const NewShipments = () => {
     }
   }, []);
 
+  useEffect(() => {
+  // When shipment type changes, clear the job selection if it doesn't match
+  if (shipmentType && formData.jobNo) {
+    const selectedJob = jobs.find(job => job.job_no === formData.jobNo);
+    if (selectedJob && selectedJob.job_type !== shipmentType) {
+      setFormData(prev => ({ ...prev, jobNo: '' }));
+    }
+  }
+}, [shipmentType, jobs, formData.jobNo]);
+
   // Load jobs and shipments on component mount
   useEffect(() => {
     fetchJobs();
@@ -306,107 +321,117 @@ const NewShipments = () => {
       setMaxHeight(`${calculatedMaxHeight}px`);
     }
   }, [shipments]);
+const handleJobSelect = async (e) => {
+  const selectedJobNo = e.target.value;
+  setFormData((prev) => ({ ...prev, jobNo: selectedJobNo }));
 
-  // Handle job selection and auto-fill form
-  const handleJobSelect = async (e) => {
-    const selectedJobId = e.target.value;
-    setFormData((prev) => ({ ...prev, jobNo: selectedJobId }));
+  if (!selectedJobNo) return;
 
-    if (!selectedJobId) return;
+  try {
+    const { data, error } = await supabase
+      .from("jobs")
+      .select("*")
+      .eq("job_no", selectedJobNo)
+      .single();
 
-    try {
-      const { data, error } = await supabase
-        .from("jobs")
-        .select("*")
-        .eq("job_no", selectedJobId)
-        .single();
-
-      if (error) {
-        console.error("Error fetching job:", error.message);
-        return;
-      }
-
-      if (data) {
-        // Update the form with all job fields
-        setFormData((prev) => ({
-          ...prev,
-          // Common job fields
-          branch: data.branch || "",
-          department: data.department || "",
-          shipmentDate: data.job_date || "",
-          client: data.client || "",
-          shipper: data.shipper || "",
-          consignee: data.consignee || "",
-          address: data.address || "",
-          por: data.por || "",
-          pol: data.pol || "",
-          pod: data.pod || "",
-          pof: data.pof || "",
-          hblNo: data.hbl_no || "",
-          etd: data.etd || "",
-          eta: data.eta || "",
-          incoterms: data.incoterms || "",
-          serviceType: data.service_type || "",
-          freight: data.freight || "",
-          payableAt: data.payable_at || "",
-          dispatchAt: data.dispatch_at || "",
-          tradeDirection: data.trade_direction || "EXPORT",
-
-          // Air Freight-specific fields
-          airport_of_departure: data.airport_of_departure || "",
-          airport_of_destination: data.airport_of_destination || "",
-          no_of_packages: data.no_of_packages || "",
-          grossWeight: data.gross_weight || "",
-          dimension_cms: data.dimension_cms || "",
-          chargeable_weight: data.chargeable_weight || "",
-          client_no: data.client_no || "",
-          name_of_airline: data.name_of_airline || "",
-          awb: data.awb || "",
-          flight_from: data.flight_from || "",
-          flight_to: data.flight_to || "",
-          flight_eta: data.flight_eta || "",
-          invoiceNo: data.invoiceNo || "",
-          invoiceDate: data.invoice_date || "",
-          notify_party: data.notify_party || "",
-
-          // Sea Freight-specific fields
-          exporter: data.exporter || "",
-          importer: data.importer || "",
-          stuffingDate: data.stuffingDate || "",
-          hoDate: data.hoDate || "",
-          terms: data.terms || "",
-          sbNo: data.sbNo || "",
-          sbDate: data.sbDate || "",
-          destination: data.destination || "",
-          commodity: data.commodity || "",
-          fob: data.fob || "",
-          grWeight: data.grWeight || "",
-          netWeight: data.netWeight || "",
-          railOutDate: data.railOutDate || "",
-          containerNo: data.containerNo || "",
-          noOfCntr: data.noOfCntr || "",
-          sLine: data.sLine || "",
-          mblNo: data.mblNo || "",
-          mblDate: data.mblDate || "",
-          hblDt: data.hblDt || "",
-          vessel: data.vessel || "",
-          voy: data.voy || "",
-          sob: data.sob || "",
-          ac: data.ac || "",
-          billNo: data.billNo || "",
-          billDate: data.billDate || "",
-          ccPort: data.ccPort || "",
-        }));
-        
-        // Set the shipment type based on the job type
-        if (data.job_type) {
-          setShipmentType(data.job_type);
-        }
-      }
-    } catch (err) {
-      console.error("Unexpected error fetching job:", err);
+    if (error) {
+      console.error("Error fetching job:", error.message);
+      return;
     }
-  };
+
+    if (data) {
+      // Helper function to format date only (without time)
+      const formatDateOnly = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toISOString().split('T')[0];
+      };
+
+      // Update the form with all job fields, mapping database fields to form fields
+      setFormData((prev) => ({
+        ...prev,
+        // Common job fields
+        branch: data.branch || prev.branch,
+        department: data.department || prev.department,
+        shipmentDate: formatDateOnly(data.job_date) || prev.shipmentDate,
+        client: data.client || prev.client,
+        shipper: data.shipper || prev.shipper,
+        consignee: data.consignee || prev.consignee,
+        address: data.address || prev.address,
+        por: data.por || prev.por,
+        pol: data.pol || prev.pol,
+        pod: data.pod || prev.pod,
+        pof: data.pof || prev.pof,
+        hblNo: data.hbl_no || prev.hblNo,
+        // Use date-only formatting for ETD/ETA
+        etd: formatDateOnly(data.etd) || prev.etd,
+        eta: formatDateOnly(data.eta) || prev.eta,
+        incoterms: data.incoterms || prev.incoterms,
+        serviceType: data.service_type || prev.serviceType,
+        freight: data.freight || prev.freight,
+        payableAt: data.payable_at || prev.payableAt,
+        dispatchAt: data.dispatch_at || prev.dispatchAt,
+        tradeDirection: data.trade_direction || prev.tradeDirection,
+        volume: data.volume || prev.volume,
+        grossWeight: data.gross_weight || prev.grossWeight,
+        description: data.description || prev.description,
+        remarks: data.remarks || prev.remarks,
+        hs_code: data.hs_code || prev.hs_code,
+
+        // Air Freight-specific fields
+        airport_of_departure: data.airport_of_departure || prev.airport_of_departure,
+        airport_of_destination: data.airport_of_destination || prev.airport_of_destination,
+        no_of_packages: data.no_of_packages || prev.no_of_packages,
+        dimension_cms: data.dimension_cms || prev.dimension_cms,
+        chargeable_weight: data.chargeable_weight || prev.chargeable_weight,
+        client_no: data.client_no || prev.client_no,
+        name_of_airline: data.name_of_airline || prev.name_of_airline,
+        awb: data.awb || prev.awb,
+        flight_from: data.flight_from || prev.flight_from,
+        flight_to: data.flight_to || prev.flight_to,
+        flight_eta: formatDateOnly(data.flight_eta) || prev.flight_eta,
+        invoiceNo: data.invoice_no || prev.invoiceNo,
+        invoiceDate: formatDateOnly(data.invoice_date) || prev.invoiceDate,
+        notify_party: data.notify_party || prev.notify_party,
+
+        // Sea Freight-specific fields
+        exporter: data.exporter || prev.exporter,
+        importer: data.importer || prev.importer,
+        stuffingDate: formatDateOnly(data.stuffing_date) || prev.stuffingDate,
+        hoDate: formatDateOnly(data.ho_date) || prev.hoDate,
+        terms: data.terms || prev.terms,
+        sbNo: data.sb_no || prev.sbNo,
+        sbDate: formatDateOnly(data.sb_date) || prev.sbDate,
+        destination: data.destination || prev.destination,
+        commodity: data.commodity || prev.commodity,
+        fob: data.fob || prev.fob,
+        grWeight: data.gr_weight || prev.grWeight,
+        netWeight: data.net_weight || prev.netWeight,
+        railOutDate: formatDateOnly(data.rail_out_date) || prev.railOutDate,
+        containerNo: data.container_no || prev.containerNo,
+        noOfCntr: data.no_of_cntr || prev.noOfCntr,
+        sLine: data.s_line || prev.sLine,
+        mblNo: data.mbl_no || prev.mblNo,
+        mblDate: formatDateOnly(data.mbl_date) || prev.mblDate,
+        hblDt: formatDateOnly(data.hbl_dt) || prev.hblDt,
+        vessel: data.vessel || prev.vessel,
+        voy: data.voy || prev.voy,
+        sob: data.sob || prev.sob,
+        ac: data.ac || prev.ac,
+        billNo: data.bill_no || prev.billNo,
+        billDate: formatDateOnly(data.bill_date) || prev.billDate,
+        ccPort: data.cc_port || prev.ccPort,
+      }));
+      
+      // Set the shipment type based on the job type if not already set
+      if (data.job_type && !shipmentType) {
+        setShipmentType(data.job_type);
+      }
+    }
+  } catch (err) {
+    console.error("Unexpected error fetching job:", err);
+  }
+};
 
   // Validate current step before proceeding
   const validateStep = useCallback((step) => {
@@ -479,6 +504,8 @@ const NewShipments = () => {
 
   const handleShipmentTypeSelect = useCallback((type) => {
     setShipmentType(type);
+    // Clear job selection when shipment type changes
+    setFormData(prev => ({ ...prev, jobNo: '' }));
     if (validationErrors.shipmentType) {
       setValidationErrors(prev => {
         const newErrors = {...prev};
@@ -1173,30 +1200,33 @@ const NewShipments = () => {
                         {validationErrors.hblNo && <span className="field-error">{validationErrors.hblNo}</span>}
                       </div>
                       <div className="form-group">
-                        <label>Job No. <span className="required">*</span></label>
-                        <select 
-                          name="jobNo"
-                          value={formData.jobNo}
-                          onChange={handleJobSelect}
-                          className={validationErrors.jobNo ? 'error' : ''}
-                        >
-                          <option value="">Select a Job</option>
-                          {isLoadingJobs ? (
-                            <option value="" disabled>Loading jobs...</option>
-                          ) : (
-                            jobs.map((job) => (
-                              <option key={job.id} value={job.job_no}>
-                                {job.job_no} - {job.client || 'No Client'} ({job.job_type || 'No Type'})
-                              </option>
-                            ))
-                          )}
-                        </select>
-                        {validationErrors.jobNo && <span className="field-error">{validationErrors.jobNo}</span>}
-                      </div>
+  <label>Job No. <span className="required">*</span></label>
+  <select 
+    name="jobNo"
+    value={formData.jobNo}
+    onChange={handleJobSelect}
+    className={validationErrors.jobNo ? 'error' : ''}
+  >
+    <option value="">Select a Job</option>
+    {isLoadingJobs ? (
+      <option value="" disabled>Loading jobs...</option>
+    ) : (
+      // Filter jobs by selected shipment type
+      jobs
+        .filter(job => !shipmentType || job.job_type === shipmentType)
+        .map((job) => (
+          <option key={job.id} value={job.job_no}>
+            {job.job_no} - {job.client || 'No Client'} ({job.job_type || 'No Type'})
+          </option>
+        ))
+    )}
+  </select>
+  {validationErrors.jobNo && <span className="field-error">{validationErrors.jobNo}</span>}
+</div>
                       <div className="form-group">
                         <label>ETD <span className="required">*</span></label>
                         <input 
-                          type="datetime-local" 
+                          type="date" 
                           name="etd"
                           value={formData.etd}
                           onChange={handleInputChange}
@@ -1207,7 +1237,7 @@ const NewShipments = () => {
                       <div className="form-group">
                         <label>ETA <span className="required">*</span></label>
                         <input 
-                          type="datetime-local" 
+                          type="date" 
                           name="eta"
                           value={formData.eta}
                           onChange={handleInputChange}

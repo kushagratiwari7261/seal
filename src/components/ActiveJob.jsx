@@ -235,17 +235,19 @@ const ActiveJob = () => {
       const mappedJobs = (data || []).map(job => {
         const locationFields = getLocationFields(job);
         
-        return {
-         id: job.id,
-        jobNo: job.job_no,
-        client: job.client,
-        from: locationFields.from,
-        to: locationFields.to,
-        createdAt: job.created_at ? new Date(job.created_at).toLocaleDateString() : '',
-        updatedAt: job.updated_at ? new Date(job.updated_at).toLocaleDateString() : '',
-        eta: job.flight_eta,
-        jobType: job.job_type,
-        tradeDirection: job.trade_direction,
+       return {
+    id: job.id,
+    jobNo: job.job_no,
+    client: job.client,
+    from: job.from_location,
+    to: job.to_location,
+    createdAt: job.created_at ? new Date(job.created_at).toLocaleDateString() : '',
+    updatedAt: job.updated_at ? new Date(job.updated_at).toLocaleDateString() : '',
+    // Fix ETA mapping:
+    eta: job.eta ? new Date(job.eta).toLocaleDateString() : '',
+    flight_eta: job.flight_eta ? new Date(job.flight_eta).toLocaleDateString() : '',
+    jobType: job.job_type,
+    tradeDirection: job.trade_direction,
         
         // Include all fields that might be needed for the summary view
         shipper: job.shipper,
@@ -479,8 +481,9 @@ const ActiveJob = () => {
         
         // Handle date fields
         job_date: formData.jobDate ? new Date(formData.jobDate).toISOString() : null,
-        etd: formData.etd ? new Date(formData.etd).toISOString() : null,
-        eta: formData.eta ? new Date(formData.eta).toISOString() : null,
+       
+etd: formData.etd ? new Date(formData.etd).toISOString() : null,
+eta: formData.eta ? new Date(formData.eta).toISOString() : null,
         flight_eta: formData.flight_eta ? new Date(formData.flight_eta).toISOString() : null,
         invoice_date: formData.invoiceDate ? new Date(formData.invoiceDate).toISOString() : null,
         stuffing_date: formData.stuffingDate ? new Date(formData.stuffingDate).toISOString() : null,
@@ -523,8 +526,8 @@ const ActiveJob = () => {
         trailer_no: formData.trailer_no || null,
         size: formData.size || null,
         lrn_no: formData.lrn_no || null,
-        from: formData.from || null,
-        to: formData.to || null,
+        from_location: formData.from || null,
+        to_location: formData.to || null,
         shipper_name: formData.shipper_name || null,
         party_name: formData.party_name || null,
         factory_reporting_date: formData.factory_reporting_date ? new Date(formData.factory_reporting_date).toISOString() : null,
@@ -649,8 +652,10 @@ const ActiveJob = () => {
       trailer_no: job.trailer_no || '',
       size: job.size || '',
       lrn_no: job.lrn_no || '',
-      from: job.from || '',
-      to: job.to || '',
+      // Add these mappings:
+      from: job.from_location || '',
+      to: job.to_location || '',
+     
       shipper_name: job.shipper_name || '',
       party_name: job.party_name || '',
       factory_reporting_date: job.factory_reporting_date ? new Date(job.factory_reporting_date).toISOString().split('T')[0] : '',
@@ -856,9 +861,11 @@ const getLocationColumnHeaders = useCallback((jobType) => {
               { label: 'HBL DT', name: 'hblDt', type: 'date', condition: true },
               { label: 'VESSEL', name: 'vessel', type: 'text', condition: true },
               { label: 'VOY', name: 'voy', type: 'text', condition: true },
-              { label: 'ETD', name: 'etd', type: 'datetime-local', condition: true },
+             // In the sea freight section of renderStep3Fields():
+{ label: 'ETD', name: 'etd', type: 'datetime-local', condition: true },
+{ label: 'ETA', name: 'eta', type: 'datetime-local', condition: true },
               { label: 'SOB', name: 'sob', type: 'text', condition: true },
-              { label: 'ETA', name: 'eta', type: 'datetime-local', condition: true },
+              
               { label: 'A/C', name: 'ac', type: 'text', condition: true },
               { label: 'Bill No', name: 'billNo', type: 'text', condition: true },
               { label: 'Bill Date', name: 'billDate', type: 'date', condition: true },
@@ -956,10 +963,14 @@ const renderJobSummary = useCallback(() => {
                 <span className="label">Last Updated:</span>
                 <span className="value">{getValue(selectedJob.updatedAt)}</span>
               </div>
-              <div className="summary-row">
-                <span className="label">ETA:</span>
-                <span className="value">{getValue(selectedJob.flight_eta)}</span>
-              </div>
+             
+<div className="summary-row">
+  <span className="label">ETA:</span>
+  <span className="value">
+    {selectedJob.job_type === 'AIR FREIGHT' ? getValue(selectedJob.flight_eta) : 
+     getValue(selectedJob.eta)}
+  </span>
+</div>
             </div>
           </div>
           
@@ -1134,18 +1145,20 @@ const renderJobSummary = useCallback(() => {
         <td>{job.job_type}</td>
         <td>{job.tradeDirection}</td>
         <td>
-          {job.job_type === 'AIR FREIGHT' ? job.airport_of_departure : 
-           job.job_type === 'TRANSPORT' ? job.from : 
-           job.pol}
-        </td>
-        <td>
-          {job.job_type === 'AIR FREIGHT' ? job.airport_of_destination : 
-           job.job_type === 'TRANSPORT' ? job.to : 
-           job.pod}
-        </td>
+  {job.job_type === 'AIR FREIGHT' ? job.airport_of_departure : 
+   job.job_type === 'TRANSPORT' ? job.from_location : // Changed from job.from
+   job.pol}
+</td>
+<td>
+  {job.job_type === 'AIR FREIGHT' ? job.airport_of_destination : 
+   job.job_type === 'TRANSPORT' ? job.to_location : // Changed from job.to
+   job.pod}
+</td>
         <td>{job.createdAt}</td>
         <td>{job.updatedAt}</td>
-        <td>
+
+
+<td>
   {job.job_type === 'AIR FREIGHT' ? job.flight_eta : job.eta}
 </td>
             
@@ -1276,6 +1289,18 @@ const renderJobSummary = useCallback(() => {
                           <span className="label">Shipper</span>
                           <span className="value">{formData.shipper}</span>
                         </div>
+                        
+    {/* ADD LOCATION SUMMARY HERE */}
+    <div className="location-summary">
+      <div className="summary-row">
+        <span className="label">{getLocationColumnHeaders(jobType)[0]}:</span>
+        <span className="value">{formData.airport_of_departure}</span>
+      </div>
+      <div className="summary-row">
+        <span className="label">{getLocationColumnHeaders(jobType)[1]}:</span>
+        <span className="value">{formData.airport_of_destination}</span>
+      </div>
+    </div>
 
                         <div className="divider"></div>
 
@@ -1319,6 +1344,16 @@ const renderJobSummary = useCallback(() => {
           </div>
 
           <div className="divider"></div>
+            <div className="location-summary">
+      <div className="summary-row">
+        <span className="label">{getLocationColumnHeaders(jobType)[0]}:</span>
+        <span className="value">{formData.from}</span>
+      </div>
+      <div className="summary-row">
+        <span className="label">{getLocationColumnHeaders(jobType)[1]}:</span>
+        <span className="value">{formData.to}</span>
+      </div>
+    </div>
 
           <div className="booking-info-section">
             <h3>Transport Booking Info</h3>
@@ -1362,6 +1397,20 @@ const renderJobSummary = useCallback(() => {
                           <span className="label">Shipper</span>
                           <span className="value">{formData.shipper}</span>
                         </div>
+                          // In the job summary view (renderJobSummary function):
+<div className="summary-row">
+  <span className="label">ETD:</span>
+  <span className="value">
+    {selectedJob.etd ? new Date(selectedJob.etd).toLocaleString() : 'N/A'}
+  </span>
+</div>
+<div className="summary-row">
+  <span className="label">ETA:</span>
+  <span className="value">
+    {selectedJob.eta ? new Date(selectedJob.eta).toLocaleString() : 'N/A'}
+  </span>
+</div>
+                        
 
                         <div className="divider"></div>
 
@@ -1401,7 +1450,9 @@ const renderJobSummary = useCallback(() => {
                               { label: 'VOY:', value: formData.voy },
                               { label: 'ETD:', value: formData.etd },
                               { label: 'SOB:', value: formData.sob },
-                              { label: 'ETA:', value: formData.eta },
+                              // In the sea freight summary section of activeStep === 4:
+{ label: 'ETD:', value: formData.etd ? new Date(formData.etd).toLocaleString() : 'N/A' },
+{ label: 'ETA:', value: formData.eta ? new Date(formData.eta).toLocaleString() : 'N/A' },
                               { label: 'A/C:', value: formData.ac },
                               { label: 'Bill No:', value: formData.billNo },
                               { label: 'Bill Date:', value: formData.billDate },
