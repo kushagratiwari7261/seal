@@ -443,42 +443,42 @@ const ActiveJob = () => {
       setLoading(false);
     }
   }, [orgFormData, validationErrors]);
+const handleCreateJob = useCallback(async () => {
+  try {
+    setLoading(true);
+    
+    // Function to convert empty strings to null for numeric fields
+    const cleanNumericValue = (value) => {
+      if (value === "" || value === null || value === undefined) {
+        return null;
+      }
+      // Convert string numbers to actual numbers
+      if (typeof value === 'string' && value.trim() !== "") {
+        return Number(value);
+      }
+      return value;
+    };
 
-  const handleCreateJob = useCallback(async () => {
-    try {
-      setLoading(true);
+    // Prepare job data for insertion with proper value handling
+    const jobData = {
+      // Map all your fields to match database columns
+      job_no: formData.jobNo,
+      client: formData.client,
+      shipper: formData.shipper,
+      consignee: formData.consignee,
+      invoice_no: formData.invoiceNo || null, // Add this line - FIX FOR INVOICE NUMBER
       
-      // Function to convert empty strings to null for numeric fields
-      const cleanNumericValue = (value) => {
-        if (value === "" || value === null || value === undefined) {
-          return null;
-        }
-        // Convert string numbers to actual numbers
-        if (typeof value === 'string' && value.trim() !== "") {
-          return Number(value);
-        }
-        return value;
-      };
-
-      // Prepare job data for insertion with proper value handling
-      const jobData = {
-        // Map all your fields to match database columns
-        job_no: formData.jobNo,
-        client: formData.client,
-        shipper: formData.shipper,
-        consignee: formData.consignee,
-        
-        // Handle numeric fields
-        no_of_packages: cleanNumericValue(formData.no_of_packages),
-        gross_weight: cleanNumericValue(formData.grossWeight),
-        chargeable_weight: cleanNumericValue(formData.chargeable_weight),
-        no_of_cartoons: cleanNumericValue(formData.noOfCartoons),
-        gr_weight: cleanNumericValue(formData.grWeight),
-        net_weight: cleanNumericValue(formData.netWeight),
-        no_of_cntr: cleanNumericValue(formData.noOfCntr),
-        volume: cleanNumericValue(formData.volume),
-        fob: cleanNumericValue(formData.fob),
-        
+      // Handle numeric fields
+      no_of_packages: cleanNumericValue(formData.no_of_packages),
+      gross_weight: cleanNumericValue(formData.grossWeight),
+      chargeable_weight: cleanNumericValue(formData.chargeable_weight),
+      no_of_cartoons: cleanNumericValue(formData.noOfCartoons),
+      gr_weight: cleanNumericValue(formData.grWeight),
+      net_weight: cleanNumericValue(formData.netWeight),
+      no_of_cntr: cleanNumericValue(formData.noOfCntr),
+      volume: cleanNumericValue(formData.volume),
+      fob: cleanNumericValue(formData.fob),
+     
         // Handle date fields
         job_date: formData.jobDate ? new Date(formData.jobDate).toISOString() : null,
        
@@ -586,97 +586,95 @@ eta: formData.eta ? new Date(formData.eta).toISOString() : null,
   }, [formData, jobType, tradeDirection, editingJob, handleCancel, fetchJobs]);
 
   // Handle edit job
-  const handleEditJob = useCallback((job) => {
-    setEditingJob(job);
-    setJobType(job.job_type);
-    setTradeDirection(job.trade_direction);
+const handleEditJob = useCallback((job) => {
+  setEditingJob(job);
+  setJobType(job.job_type);
+  setTradeDirection(job.trade_direction);
+  
+  // Map database fields to form fields
+  const formDataFromJob = {
+    jobNo: job.job_no,
+    client: job.client,
+    shipper: job.shipper,
+    consignee: job.consignee,
+    no_of_packages: job.no_of_packages,
+    grossWeight: job.gross_weight,
+    chargeable_weight: job.chargeable_weight,
+    noOfCartoons: job.no_of_cartoons,
+    grWeight: job.gr_weight,
+    netWeight: job.net_weight,
+    noOfCntr: job.no_of_cntr,
+    volume: job.volume,
+    fob: job.fob,
+    jobDate: job.job_date ? new Date(job.job_date).toISOString().split('T')[0] : '',
+    etd: job.etd ? new Date(job.etd).toISOString().split('T')[0] : '',
+    eta: job.eta ? new Date(job.eta).toISOString().split('T')[0] : '',
+    flight_eta: job.flight_eta ? new Date(job.flight_eta).toISOString().split('T')[0] : '',
+    invoiceDate: job.invoice_date ? new Date(job.invoice_date).toISOString().split('T')[0] : '',
+    stuffingDate: job.stuffing_date ? new Date(job.stuffing_date).toISOString().split('T')[0] : '',
+    hoDate: job.ho_date ? new Date(job.ho_date).toISOString().split('T')[0] : '',
+    sbDate: job.sb_date ? new Date(job.sb_date).toISOString().split('T')[0] : '',
+    mblDate: job.mbl_date ? new Date(job.mbl_date).toISOString().split('T')[0] : '',
+    hblDt: job.hbl_dt ? new Date(job.hbl_dt).toISOString().split('T')[0] : '',
+    railOutDate: job.rail_out_date ? new Date(job.rail_out_date).toISOString().split('T')[0] : '',
+    billDate: job.bill_date ? new Date(job.bill_date).toISOString().split('T')[0] : '',
+    pol: job.pol || '',
+    pod: job.pod || '',
+    destination: job.destination || '',
+    commodity: job.commodity || '',
+    terms: job.terms || '',
+    sbNo: job.sb_no || '',
+    containerNo: job.container_no || '',
+    sLine: job.s_line || '',
+    mblNo: job.mbl_no || '',
+    hblNo: job.hbl_no || '',
+    vessel: job.vessel || '',
+    voy: job.voy || '',
+    sob: job.sob || '',
+    ac: job.ac || '',
+    billNo: job.bill_no || '',
+    ccPort: job.cc_port || '',
+    notify_party: job.notify_party || '',
+    airport_of_departure: job.airport_of_departure || '',
+    airport_of_destination: job.airport_of_destination || '',
+    dimension_cms: job.dimension_cms || '',
+    client_no: job.client_no || '',
+    name_of_airline: job.name_of_airline || '',
+    awb: job.awb || '',
+    flight_from: job.flight_from || '',
+    flight_to: job.flight_to || '',
+    exporter: job.exporter || '',
+    importer: job.importer || '',
+    invoiceNo: job.invoice_no || '', // Add this line - FIX FOR INVOICE NUMBER
     
-    // Map database fields to form fields
-    const formDataFromJob = {
-      jobNo: job.job_no,
-      client: job.client,
-      shipper: job.shipper,
-      consignee: job.consignee,
-      no_of_packages: job.no_of_packages,
-      grossWeight: job.gross_weight,
-      chargeable_weight: job.chargeable_weight,
-      noOfCartoons: job.no_of_cartoons,
-      grWeight: job.gr_weight,
-      netWeight: job.net_weight,
-      noOfCntr: job.no_of_cntr,
-      volume: job.volume,
-      fob: job.fob,
-      jobDate: job.job_date ? new Date(job.job_date).toISOString().split('T')[0] : '',
-      etd: job.etd ? new Date(job.etd).toISOString().split('T')[0] : '',
-      eta: job.eta ? new Date(job.eta).toISOString().split('T')[0] : '',
-      flight_eta: job.flight_eta ? new Date(job.flight_eta).toISOString().split('T')[0] : '',
-      invoiceDate: job.invoice_date ? new Date(job.invoice_date).toISOString().split('T')[0] : '',
-      stuffingDate: job.stuffing_date ? new Date(job.stuffing_date).toISOString().split('T')[0] : '',
-      hoDate: job.ho_date ? new Date(job.ho_date).toISOString().split('T')[0] : '',
-      sbDate: job.sb_date ? new Date(job.sb_date).toISOString().split('T')[0] : '',
-      mblDate: job.mbl_date ? new Date(job.mbl_date).toISOString().split('T')[0] : '',
-      hblDt: job.hbl_dt ? new Date(job.hbl_dt).toISOString().split('T')[0] : '',
-      railOutDate: job.rail_out_date ? new Date(job.rail_out_date).toISOString().split('T')[0] : '',
-      billDate: job.bill_date ? new Date(job.bill_date).toISOString().split('T')[0] : '',
-      pol: job.pol || '',
-      pod: job.pod || '',
-      destination: job.destination || '',
-      commodity: job.commodity || '',
-      terms: job.terms || '',
-      sbNo: job.sb_no || '',
-      containerNo: job.container_no || '',
-      sLine: job.s_line || '',
-      mblNo: job.mbl_no || '',
-      hblNo: job.hbl_no || '',
-      vessel: job.vessel || '',
-      voy: job.voy || '',
-      sob: job.sob || '',
-      ac: job.ac || '',
-      billNo: job.bill_no || '',
-      ccPort: job.cc_port || '',
-      notify_party: job.notify_party || '',
-      airport_of_departure: job.airport_of_departure || '',
-      airport_of_destination: job.airport_of_destination || '',
-      dimension_cms: job.dimension_cms || '',
-      client_no: job.client_no || '',
-      name_of_airline: job.name_of_airline || '',
-      awb: job.awb || '',
-      flight_from: job.flight_from || '',
-      flight_to: job.flight_to || '',
-      exporter: job.exporter || '',
-      importer: job.importer || '',
-      invoiceNo: job.invoice_no || '',
-      
-      // Transport fields
-      port: job.port || '',
-      trailer_no: job.trailer_no || '',
-      size: job.size || '',
-      lrn_no: job.lrn_no || '',
-      // Add these mappings:
-      from: job.from_location || '',
-      to: job.to_location || '',
-     
-      shipper_name: job.shipper_name || '',
-      party_name: job.party_name || '',
-      factory_reporting_date: job.factory_reporting_date ? new Date(job.factory_reporting_date).toISOString().split('T')[0] : '',
-      factory_reporting_out: job.factory_reporting_out ? new Date(job.factory_reporting_out).toISOString().split('T')[0] : '',
-      offloading_date: job.offloading_date ? new Date(job.offloading_date).toISOString().split('T')[0] : '',
-      days_of_detention: job.days_of_detention || '',
-      transporter: job.transporter || '',
-      vehicle_buy_amount: job.vehicle_buy_amount || '',
-      vehicle_billing_amount: job.vehicle_billing_amount || '',
-      movement: job.movement || '',
-      driver_name: job.driver_name || '',
-      driver_mobile_no: job.driver_mobile_no || '',
-      bill_no: job.bill_no || '',
-      bill_date: job.bill_date ? new Date(job.bill_date).toISOString().split('T')[0] : '',
-      amount: job.amount || '',
-    };
-    
-    setFormData(formDataFromJob);
-    setShowJobForm(true);
-    setActiveStep(3); // Start at port details step for editing
-  }, []);
+    // Transport fields
+    port: job.port || '',
+    trailer_no: job.trailer_no || '',
+    size: job.size || '',
+    lrn_no: job.lrn_no || '',
+    from: job.from_location || '',
+    to: job.to_location || '',
+    shipper_name: job.shipper_name || '',
+    party_name: job.party_name || '',
+    factory_reporting_date: job.factory_reporting_date ? new Date(job.factory_reporting_date).toISOString().split('T')[0] : '',
+    factory_reporting_out: job.factory_reporting_out ? new Date(job.factory_reporting_out).toISOString().split('T')[0] : '',
+    offloading_date: job.offloading_date ? new Date(job.offloading_date).toISOString().split('T')[0] : '',
+    days_of_detention: job.days_of_detention || '',
+    transporter: job.transporter || '',
+    vehicle_buy_amount: job.vehicle_buy_amount || '',
+    vehicle_billing_amount: job.vehicle_billing_amount || '',
+    movement: job.movement || '',
+    driver_name: job.driver_name || '',
+    driver_mobile_no: job.driver_mobile_no || '',
+    bill_no: job.bill_no || '',
+    bill_date: job.bill_date ? new Date(job.bill_date).toISOString().split('T')[0] : '',
+    amount: job.amount || '',
+  };
+  
+  setFormData(formDataFromJob);
+  setShowJobForm(true);
+  setActiveStep(3); // Start at port details step for editing
+}, []);
 
   // Handle delete job
   const handleDeleteJob = useCallback(async () => {

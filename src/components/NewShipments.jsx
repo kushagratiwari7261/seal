@@ -807,8 +807,8 @@ const handleJobSelect = async (e) => {
               { label: 'AWB', name: 'awb', type: 'text' },
               { label: 'Flight From', name: 'flight_from', type: 'text' },
               { label: 'Flight To', name: 'flight_to', type: 'text' },
-              { label: 'Flight ETA', name: 'flight_eta', type: 'datetime-local' },
-              { label: 'Invoice No', name: 'invoiceNo', type: 'text' },
+              { label: 'Flight ETA', name: 'flight_eta', type: 'date' },
+              { label: 'Invoice No', name: 'invoiceNo', type: 'number' },
               { label: 'Invoice Date', name: 'invoiceDate', type: 'date' },
               { label: 'Notify Party', name: 'notify_party', type: 'text' },
             ].map((field, index) => (
@@ -1399,48 +1399,6 @@ const handleJobSelect = async (e) => {
                       </div>
                     </div>
 
-                    <div className="divider"></div>
-
-                    <div className="charges-section">
-                      <h3>Charge</h3>
-                      <table className="charges-table">
-                        <thead>
-                          <tr>
-                            <th>Charge Description</th>
-                            <th>OFD Type</th>
-                            <th>Unit</th>
-                            <th>Freight</th>
-                            <th>Dr/Cr</th>
-                            <th>Currency</th>
-                            <th>Sale</th>
-                            <th>Tax Group</th>
-                            <th>Tax Amount</th>
-                            <th>Amount (USD)</th>
-                            <th>Sale Remarks</th>
-                            <th>Remarks</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td>DOCUMENTATION CHARGES</td>
-                            <td>N/A</td>
-                            <td>PER DOCUMENT</td>
-                            <td>{formData.freight}</td>
-                            <td>Cr</td>
-                            <td>AED</td>
-                            <td>1 x 100 x 272236</td>
-                            <td></td>
-                            <td>0.00</td>
-                            <td>{amount}</td>
-                            <td></td>
-                            <td>{formData.remarks}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                      <div className="sale-note">
-                        Sale - (Qty x Amount Per Unit x Ex.Rate)
-                      </div>
-                    </div>
 
                     {/* Checkbox Section */}
                     <div className="confirmation-checkboxes">
