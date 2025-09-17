@@ -5,51 +5,12 @@ import * as XLSX from 'xlsx';
 const DSRHondaReport = () => {
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
+  const [selectedRows, setSelectedRows] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [selectedColumns, setSelectedColumns] = useState([
-    'SNO', 'Job', 'INVNO', 'INVDT', 'CONSIGNEE', 'DESTINATION', 
-    'GOODS', 'GrossWeightKGS', 'NETWEIGHT', 'TERM', 'SBILLNO', 
-    'SBILLDT', 'STUFFINGDT', 'HANDOVERDT', 'SLINE', 'BKGNO', 
-    'CONTAINERNO', 'CONTYPE', 'RAILOUTDT', 'ARRIVAL', 'VESSEL', 
-    'VOY', 'ETD', 'SOB', 'ETA', 'MBHBLNO', 'DT', 'REMARK'
-  ]);
-  const [showColumnSelector, setShowColumnSelector] = useState(false);
-
-  // All available columns with their display names
-  const allColumns = [
-    { key: 'SNO', name: 'S/NO' },
-    { key: 'Job', name: 'Job No' },
-    { key: 'INVNO', name: 'INV NO.' },
-    { key: 'INVDT', name: 'INV DT' },
-    { key: 'CONSIGNEE', name: 'CONSIGNEE' },
-    { key: 'DESTINATION', name: 'DESTINATION' },
-    { key: 'GOODS', name: 'GOODS' },
-    { key: 'GrossWeightKGS', name: 'Gross Weight KGS' },
-    { key: 'NETWEIGHT', name: 'NET WEIGHT (KGS)' },
-    { key: 'TERM', name: 'TERM' },
-    { key: 'SBILLNO', name: 'SBILL NO.' },
-    { key: 'SBILLDT', name: 'SBILL DT' },
-    { key: 'STUFFINGDT', name: 'STUFFING DT.' },
-    { key: 'HANDOVERDT', name: 'HANDOVER DT.' },
-    { key: 'SLINE', name: 'S/LINE' },
-    { key: 'BKGNO', name: 'BKG NO' },
-    { key: 'CONTAINERNO', name: 'CONTAINER NO.' },
-    { key: 'CONTYPE', name: 'CON TYPE' },
-    { key: 'RAILOUTDT', name: 'RAIL OUT DT.' },
-    { key: 'ARRIVAL', name: 'ARRIVAL @ MUNDRA/PIPAVAV' },
-    { key: 'VESSEL', name: 'VESSEL' },
-    { key: 'VOY', name: 'VOY' },
-    { key: 'ETD', name: 'E.T.D' },
-    { key: 'SOB', name: 'S.O.B' },
-    { key: 'ETA', name: 'E.T.A' },
-    { key: 'MBHBLNO', name: 'MB/HBL NO' },
-    { key: 'DT', name: 'DT.' },
-    { key: 'REMARK', name: 'REMARK' }
-  ];
 
   // Function to format dates consistently
   const formatDate = useCallback((dateValue) => {
@@ -176,33 +137,34 @@ const DSRHondaReport = () => {
       // Extract values from shipment data
       return {
         SNO: index + 1,
-        INVNO: item.shipment_no || null,
-        INVDT: extractDateFromTimestamp(item.shipment_date),
+        INVNO: item.invoice_no || item.shipment_no || null,
+        INVDT: extractDateFromTimestamp(item.invoice_date || item.shipment_date),
         CONSIGNEE: item.consignee || null,
-        DESTINATION: item.pod || item.pof || null,
-        GOODS: item.description || null,
-        GrossWeightKGS: item.gross_weight || null,
-        NETWEIGHT: item.gross_weight || null, // Using gross weight as fallback
-        TERM: item.incoterms || null,
-        SBILLNO: item.hbl_no || null,
-        SBILLDT: extractDateFromTimestamp(item.shipment_date),
-        STUFFINGDT: extractDateFromTimestamp(item.shipment_date), // Using shipment date as fallback
-        HANDOVERDT: extractDateFromTimestamp(item.shipment_date), // Using shipment date as fallback
-        SLINE: item.carrier || null,
+        DESTINATION: item.destination || item.pod || item.pof || null,
+        GOODS: item.commodity || item.description || null,
+        GrossWeightKGS: item.gr_weight || item.gross_weight || null,
+        NETWEIGHT: item.net_weight || item.gross_weight || null,
+        TERM: item.incoterms || item.terms || null,
+        SBILLNO: item.sb_no || item.hbl_no || null,
+        SBILLDT: extractDateFromTimestamp(item.sb_date || item.shipment_date),
+        STUFFINGDT: extractDateFromTimestamp(item.stuffing_date || item.stuffingDate),
+        HANDOVERDT: extractDateFromTimestamp(item.ho_date || item.hoDate),
+        SLINE: item.s_line || item.sLine || item.carrier || null,
         BKGNO: item.job_no || null,
-        CONTAINERNO: "N/A", // Not in the schema
-        CONTYPE: "N/A", // Not in the schema
-        RAILOUTDT: extractDateFromTimestamp(item.shipment_date), // Using shipment date as fallback
-        ARRIVAL: extractDateFromTimestamp(item.eta), // Using ETA as arrival
-        VESSEL: item.vessel_name_summary || null,
-        VOY: "N/A", // Not in the schema
+        CONTAINERNO: item.container_no || item.containerNo || "N/A",
+        CONTYPE: "N/A", // Not directly in the schema, could be derived from no_of_cntr
+        RAILOUTDT: extractDateFromTimestamp(item.rail_out_date || item.railOutDate),
+        ARRIVAL: extractDateFromTimestamp(item.eta),
+        VESSEL: item.vessel || item.vessel_name_summary || null,
+        VOY: item.voy || null,
         ETD: extractDateFromTimestamp(item.etd),
-        SOB: extractDateFromTimestamp(item.etd), // Using ETD as sail on board
+        SOB: extractDateFromTimestamp(item.sob),
         ETA: extractDateFromTimestamp(item.eta),
-        MBHBLNO: item.hbl_no || null,
-        DT: extractDateFromTimestamp(item.shipment_date),
+        MBHBLNO: item.mbl_no || item.mblNo || item.hbl_no || null,
+        DT: extractDateFromTimestamp(item.hbl_dt || item.hblDt || item.shipment_date),
         REMARK: item.remarks || null,
         Job: item.job_no || null,
+        id: item.id // Add the id for row selection
       };
     });
 
@@ -224,7 +186,6 @@ const DSRHondaReport = () => {
     }
     setFilteredData(result);
   }, [searchTerm, data]);
-
 
   const handleSort = (key) => {
     let direction = 'ascending';
@@ -263,18 +224,106 @@ const DSRHondaReport = () => {
     setFilteredData(sortedData);
   };
 
-  const exportToExcel = () => {
+  const toggleRowSelection = (id) => {
+    const newSelectedRows = new Set(selectedRows);
+    if (newSelectedRows.has(id)) {
+      newSelectedRows.delete(id);
+    } else {
+      newSelectedRows.add(id);
+    }
+    setSelectedRows(newSelectedRows);
+  };
+
+  const toggleAllRows = () => {
+    if (selectedRows.size === filteredData.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(filteredData.map(item => item.id)));
+    }
+  };
+
+  const exportSelectedToExcel = () => {
+    if (selectedRows.size === 0) {
+      alert("Please select at least one row to export.");
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    
+    // Filter data to only selected rows
+    const selectedData = data.filter(item => selectedRows.has(item.id));
+    
+    // Create a copy of data with more readable headers
+    const excelData = selectedData.map(item => ({
+      'S/NO': item.SNO,
+      'Job No': item.Job,
+      'INV NO.': item.INVNO,
+      'INV DT': item.INVDT,
+      'CONSIGNEE': item.CONSIGNEE,
+      'DESTINATION': item.DESTINATION,
+      'GOODS': item.GOODS,
+      'Gross Weight KGS': item.GrossWeightKGS,
+      'NET WEIGHT (KGS)': item.NETWEIGHT,
+      'TERM': item.TERM,
+      'SBILL NO.': item.SBILLNO,
+      'SBILL DT': item.SBILLDT,
+      'STUFFING DT.': item.STUFFINGDT,
+      'HANDOVER DT.': item.HANDOVERDT,
+      'S/LINE': item.SLINE,
+      'BKG NO': item.BKGNO,
+      'CONTAINER NO.': item.CONTAINERNO,
+      'CON TYPE': item.CONTYPE,
+      'RAIL OUT DT.': item.RAILOUTDT,
+      'ARRIVAL @ MUNDRA/PIPAVAV': item.ARRIVAL,
+      'VESSEL': item.VESSEL,
+      'VOY': item.VOY,
+      'E.T.D': item.ETD,
+      'S.O.B': item.SOB,
+      'E.T.A': item.ETA,
+      'MB/HBL NO': item.MBHBLNO,
+      'DT.': item.DT,
+      'REMARK': item.REMARK
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    XLSX.utils.book_append_sheet(wb, ws, "DSR Honda Report");
+    XLSX.writeFile(wb, "DSR_Honda_Report_Selected.xlsx");
+  };
+
+  const exportAllToExcel = () => {
     const wb = XLSX.utils.book_new();
     
     // Create a copy of data with more readable headers
-    const excelData = filteredData.map(item => {
-      const row = {};
-      selectedColumns.forEach(col => {
-        const columnInfo = allColumns.find(c => c.key === col);
-        row[columnInfo.name] = item[col] || 'N/A';
-      });
-      return row;
-    });
+    const excelData = filteredData.map(item => ({
+      'S/NO': item.SNO,
+      'Job No': item.Job,
+      'INV NO.': item.INVNO,
+      'INV DT': item.INVDT,
+      'CONSIGNEE': item.CONSIGNEE,
+      'DESTINATION': item.DESTINATION,
+      'GOODS': item.GOODS,
+      'Gross Weight KGS': item.GrossWeightKGS,
+      'NET WEIGHT (KGS)': item.NETWEIGHT,
+      'TERM': item.TERM,
+      'SBILL NO.': item.SBILLNO,
+      'SBILL DT': item.SBILLDT,
+      'STUFFING DT.': item.STUFFINGDT,
+      'HANDOVER DT.': item.HANDOVERDT,
+      'S/LINE': item.SLINE,
+      'BKG NO': item.BKGNO,
+      'CONTAINER NO.': item.CONTAINERNO,
+      'CON TYPE': item.CONTYPE,
+      'RAIL OUT DT.': item.RAILOUTDT,
+      'ARRIVAL @ MUNDRA/PIPAVAV': item.ARRIVAL,
+      'VESSEL': item.VESSEL,
+      'VOY': item.VOY,
+      'E.T.D': item.ETD,
+      'S.O.B': item.SOB,
+      'E.T.A': item.ETA,
+      'MB/HBL NO': item.MBHBLNO,
+      'DT.': item.DT,
+      'REMARK': item.REMARK
+    }));
     
     const ws = XLSX.utils.json_to_sheet(excelData);
     XLSX.utils.book_append_sheet(wb, ws, "DSR ");
@@ -285,28 +334,12 @@ const DSRHondaReport = () => {
     setRetryCount(prev => prev + 1);
   };
 
-  const toggleColumn = (columnKey) => {
-    if (selectedColumns.includes(columnKey)) {
-      setSelectedColumns(selectedColumns.filter(col => col !== columnKey));
-    } else {
-      setSelectedColumns([...selectedColumns, columnKey]);
-    }
-  };
-
-  const selectAllColumns = () => {
-    setSelectedColumns(allColumns.map(col => col.key));
-  };
-
-  const deselectAllColumns = () => {
-    setSelectedColumns([]);
-  };
-
   if (loading) return <div style={styles.loading}>Loading data...</div>;
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>DSR Honda Report</h1>
+        <h1 style={styles.title}>DSR </h1>
         <div style={styles.controls}>
           <input
             type="text"
@@ -315,48 +348,25 @@ const DSRHondaReport = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             style={styles.searchInput}
           />
-          <button 
-            style={styles.columnButton} 
-            onClick={() => setShowColumnSelector(!showColumnSelector)}
-          >
-            Select Columns
-          </button>
-          <button style={styles.exportButton} onClick={exportToExcel}>
-            Export to Excel
-          </button>
-          {error && (
-            <button style={styles.retryButton} onClick={retryFetch}>
-              Retry
+          <div style={styles.buttonGroup}>
+            <button 
+              style={styles.exportButton} 
+              onClick={exportSelectedToExcel}
+              disabled={selectedRows.size === 0}
+            >
+              Export Selected ({selectedRows.size})
             </button>
-          )}
+            <button style={styles.exportAllButton} onClick={exportAllToExcel}>
+              Export All
+            </button>
+            {error && (
+              <button style={styles.retryButton} onClick={retryFetch}>
+                Retry
+              </button>
+            )}
+          </div>
         </div>
       </div>
-      
-      {showColumnSelector && (
-        <div style={styles.columnSelector}>
-          <h3>Select Columns to Display</h3>
-          <div style={styles.columnSelectorButtons}>
-            <button style={styles.smallButton} onClick={selectAllColumns}>
-              Select All
-            </button>
-            <button style={styles.smallButton} onClick={deselectAllColumns}>
-              Deselect All
-            </button>
-          </div>
-          <div style={styles.columnList}>
-            {allColumns.map(column => (
-              <label key={column.key} style={styles.columnCheckbox}>
-                <input
-                  type="checkbox"
-                  checked={selectedColumns.includes(column.key)}
-                  onChange={() => toggleColumn(column.key)}
-                />
-                {column.name}
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
       
       {error && (
         <div style={styles.error}>
@@ -388,37 +398,83 @@ const DSRHondaReport = () => {
             <div style={styles.resultsInfo}>
               Showing {filteredData.length} of {data.length} records
               {searchTerm && ` matching "${searchTerm}"`}
+              {selectedRows.size > 0 && ` | ${selectedRows.size} selected`}
             </div>
             <table style={styles.table}>
               <thead>
                 <tr style={styles.headerRow}>
-                  {allColumns
-                    .filter(column => selectedColumns.includes(column.key))
-                    .map(column => (
-                      <th 
-                        key={column.key} 
-                        style={styles.cell} 
-                        onClick={() => handleSort(column.key)}
-                        title={`Sort by ${column.name}`}
-                      >
-                        {column.name}
-                        {sortConfig.key === column.key && (
-                          <span>{sortConfig.direction === 'ascending' ? ' ▲' : ' ▼'}</span>
-                        )}
-                      </th>
-                    ))}
+                  <th style={styles.checkboxCell}>
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.size === filteredData.length && filteredData.length > 0}
+                      onChange={toggleAllRows}
+                      title="Select all rows"
+                    />
+                  </th>
+                  {[
+                    'SNO', 'Job', 'INVNO', 'INVDT', 'CONSIGNEE', 'DESTINATION', 
+                    'GOODS', 'GrossWeightKGS', 'NETWEIGHT', 'TERM', 'SBILLNO', 
+                    'SBILLDT', 'STUFFINGDT', 'HANDOVERDT', 'SLINE', 'BKGNO', 
+                    'CONTAINERNO', 'CONTYPE', 'RAILOUTDT', 'ARRIVAL', 'VESSEL', 
+                    'VOY', 'ETD', 'SOB', 'ETA', 'MBHBLNO', 'DT', 'REMARK'
+                  ].map(column => (
+                    <th 
+                      key={column} 
+                      style={styles.cell} 
+                      onClick={() => handleSort(column)}
+                      title={`Sort by ${column}`}
+                    >
+                      {column}
+                      {sortConfig.key === column && (
+                        <span>{sortConfig.direction === 'ascending' ? ' ▲' : ' ▼'}</span>
+                      )}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {filteredData.map((row, index) => (
-                  <tr key={index} style={index % 2 === 0 ? styles.evenRow : styles.oddRow}>
-                    {allColumns
-                      .filter(column => selectedColumns.includes(column.key))
-                      .map(column => (
-                        <td key={column.key} style={styles.cell}>
-                          {row[column.key] || 'N/A'}
-                        </td>
-                      ))}
+                  <tr 
+                    key={row.id} 
+                    style={index % 2 === 0 ? styles.evenRow : styles.oddRow}
+                    className={selectedRows.has(row.id) ? styles.selectedRow : ''}
+                  >
+                    <td style={styles.checkboxCell}>
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.has(row.id)}
+                        onChange={() => toggleRowSelection(row.id)}
+                        title="Select this row"
+                      />
+                    </td>
+                    <td style={styles.cell}>{row.SNO}</td>
+                    <td style={styles.cell}>{row.Job || 'N/A'}</td>
+                    <td style={styles.cell}>{row.INVNO || 'N/A'}</td>
+                    <td style={styles.cell}>{row.INVDT || 'N/A'}</td>
+                    <td style={styles.cell}>{row.CONSIGNEE || 'N/A'}</td>
+                    <td style={styles.cell}>{row.DESTINATION || 'N/A'}</td>
+                    <td style={styles.cell}>{row.GOODS || 'N/A'}</td>
+                    <td style={styles.cell}>{row.GrossWeightKGS || 'N/A'}</td>
+                    <td style={styles.cell}>{row.NETWEIGHT || 'N/A'}</td>
+                    <td style={styles.cell}>{row.TERM || 'N/A'}</td>
+                    <td style={styles.cell}>{row.SBILLNO || 'N/A'}</td>
+                    <td style={styles.cell}>{row.SBILLDT || 'N/A'}</td>
+                    <td style={styles.cell}>{row.STUFFINGDT || 'N/A'}</td>
+                    <td style={styles.cell}>{row.HANDOVERDT || 'N/A'}</td>
+                    <td style={styles.cell}>{row.SLINE || 'N/A'}</td>
+                    <td style={styles.cell}>{row.BKGNO || 'N/A'}</td>
+                    <td style={styles.cell}>{row.CONTAINERNO || 'N/A'}</td>
+                    <td style={styles.cell}>{row.CONTYPE || 'N/A'}</td>
+                    <td style={styles.cell}>{row.RAILOUTDT || 'N/A'}</td>
+                    <td style={styles.cell}>{row.ARRIVAL || 'N/A'}</td>
+                    <td style={styles.cell}>{row.VESSEL || 'N/A'}</td>
+                    <td style={styles.cell}>{row.VOY || 'N/A'}</td>
+                    <td style={styles.cell}>{row.ETD || 'N/A'}</td>
+                    <td style={styles.cell}>{row.SOB || 'N/A'}</td>
+                    <td style={styles.cell}>{row.ETA || 'N/A'}</td>
+                    <td style={styles.cell}>{row.MBHBLNO || 'N/A'}</td>
+                    <td style={styles.cell}>{row.DT || 'N/A'}</td>
+                    <td style={styles.cell}>{row.REMARK || 'N/A'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -467,14 +523,10 @@ const styles = {
     fontSize: '14px',
     minWidth: '200px',
   },
-  columnButton: {
-    padding: '8px 16px',
-    backgroundColor: '#6c757d',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
+  buttonGroup: {
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'center',
   },
   exportButton: {
     padding: '8px 16px',
@@ -485,45 +537,22 @@ const styles = {
     cursor: 'pointer',
     fontWeight: 'bold',
   },
-  retryButton: {
+  exportAllButton: {
     padding: '8px 16px',
     backgroundColor: '#28a745',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
+    fontWeight: 'bold',
   },
-  columnSelector: {
-    marginBottom: '20px',
-    padding: '15px',
-    backgroundColor: '#f8f9fa',
-    border: '1px solid #dee2e6',
-    borderRadius: '5px',
-  },
-  columnSelectorButtons: {
-    display: 'flex',
-    gap: '10px',
-    marginBottom: '10px',
-  },
-  smallButton: {
-    padding: '5px 10px',
-    backgroundColor: '#6c757d',
-    color: 'white',
+  retryButton: {
+    padding: '8px 16px',
+    backgroundColor: '#ffc107',
+    color: 'black',
     border: 'none',
-    borderRadius: '3px',
+    borderRadius: '4px',
     cursor: 'pointer',
-    fontSize: '12px',
-  },
-  columnList: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: '10px',
-  },
-  columnCheckbox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '5px',
-    fontSize: '14px',
   },
   tableContainer: {
     overflowX: 'auto',
@@ -542,6 +571,7 @@ const styles = {
     width: '100%',
     borderCollapse: 'collapse',
     fontSize: '12px',
+    minWidth: '2900px', // Accommodate all columns + checkbox column
   },
   headerRow: {
     backgroundColor: '#1e3a8a',
@@ -549,6 +579,13 @@ const styles = {
     position: 'sticky',
     top: 0,
     zIndex: 10,
+  },
+  checkboxCell: {
+    padding: '8px',
+    border: '1px solid #d9d9d9',
+    textAlign: 'center',
+    width: '40px',
+    cursor: 'pointer',
   },
   cell: {
     padding: '8px',
@@ -565,6 +602,9 @@ const styles = {
   },
   oddRow: {
     backgroundColor: '#ffffff',
+  },
+  selectedRow: {
+    backgroundColor: '#e3f2fd',
   },
   loading: {
     textAlign: 'center',
