@@ -132,48 +132,47 @@ const DSRHondaReport = () => {
   }, [fetchData, retryCount]);
 
   const transformData = useCallback((rawData) => {
-    // Transform the shipment data
-    const transformedData = rawData.map((item, index) => {
-      // Extract values from shipment data
-      return {
-        SNO: index + 1,
-        INVNO: item.invoice_no || item.shipment_no || null,
-        INVDT: extractDateFromTimestamp(item.invoice_date || item.shipment_date),
-        CONSIGNEE: item.consignee || null,
-        DESTINATION: item.destination || item.pod || item.pof || null,
-        GOODS: item.commodity || item.description || null,
-        GrossWeightKGS: item.gr_weight || item.gross_weight || null,
-        NETWEIGHT: item.net_weight || item.gross_weight || null,
-        TERM: item.incoterms || item.terms || null,
-        SBILLNO: item.sb_no || item.hbl_no || null,
-        SBILLDT: extractDateFromTimestamp(item.sb_date || item.shipment_date),
-        STUFFINGDT: extractDateFromTimestamp(item.stuffing_date || item.stuffingDate),
-        HANDOVERDT: extractDateFromTimestamp(item.ho_date || item.hoDate),
-        SLINE: item.s_line || item.sLine || item.carrier || null,
-        BKGNO: item.job_no || null,
-        CONTAINERNO: item.container_no || item.containerNo || "N/A",
-        CONTYPE: "N/A", // Not directly in the schema, could be derived from no_of_cntr
-        RAILOUTDT: extractDateFromTimestamp(item.rail_out_date || item.railOutDate),
-        ARRIVAL: extractDateFromTimestamp(item.eta),
-        VESSEL: item.vessel || item.vessel_name_summary || null,
-        VOY: item.voy || null,
-        ETD: extractDateFromTimestamp(item.etd),
-        SOB: extractDateFromTimestamp(item.sob),
-        ETA: extractDateFromTimestamp(item.eta),
-        MBHBLNO: item.mbl_no || item.mblNo || item.hbl_no || null,
-        DT: extractDateFromTimestamp(item.hbl_dt || item.hblDt || item.shipment_date),
-        REMARK: item.remarks || null,
-        Job: item.job_no || null,
-        id: item.id // Add the id for row selection
-      };
-    });
+  // Transform the shipment data
+  const transformedData = rawData.map((item, index) => {
+    // Extract values from shipment data with proper mapping
+    return {
+      SNO: index + 1,
+      INVNO: item.invoice_no || item.invoiceNo || item.shipment_no || null,
+      INVDT: extractDateFromTimestamp(item.invoice_date || item.invoiceDate || item.shipment_date),
+      CONSIGNEE: item.consignee || null,
+      DESTINATION: item.destination || item.pod || item.pof || null,
+      GOODS: item.commodity || item.description || null,
+      GrossWeightKGS: item.gr_weight || item.grWeight || item.gross_weight || null,
+      NETWEIGHT: item.net_weight || item.netWeight || item.gross_weight || null,
+      TERM: item.incoterms || item.terms || null,
+      SBILLNO: item.sb_no || item.sbNo || item.hbl_no || null,
+      SBILLDT: extractDateFromTimestamp(item.sb_date || item.sbDate || item.shipment_date),
+      STUFFINGDT: extractDateFromTimestamp(item.stuffing_date || item.stuffingDate),
+      HANDOVERDT: extractDateFromTimestamp(item.ho_date || item.hoDate),
+      SLINE: item.s_line || item.sLine || item.carrier || null,
+      BKGNO: item.job_no || null,
+      CONTAINERNO: item.container_no || item.containerNo || "N/A",
+      CONTYPE: item.no_of_cntr || item.noOfCntr ? `${item.no_of_cntr || item.noOfCntr} containers` : "N/A",
+      RAILOUTDT: extractDateFromTimestamp(item.rail_out_date || item.railOutDate),
+      ARRIVAL: extractDateFromTimestamp(item.eta),
+      VESSEL: item.vessel || item.vessel_name_summary || null,
+      VOY: item.voy || null,
+      ETD: extractDateFromTimestamp(item.etd),
+      SOB: extractDateFromTimestamp(item.sob),
+      ETA: extractDateFromTimestamp(item.eta),
+      MBHBLNO: item.mbl_no || item.mblNo || item.hbl_no || null,
+      DT: extractDateFromTimestamp(item.hbl_dt || item.hblDt || item.shipment_date),
+      REMARK: item.remarks || null,
+      Job: item.job_no || null,
+      id: item.id // Add the id for row selection
+    };
+  });
 
-    console.log('Final transformed data:', transformedData);
-    setData(transformedData);
-    setFilteredData(transformedData);
-    setLoading(false);
-  }, [extractDateFromTimestamp]);
-
+  console.log('Final transformed data:', transformedData);
+  setData(transformedData);
+  setFilteredData(transformedData);
+  setLoading(false);
+}, [extractDateFromTimestamp]);
   useEffect(() => {
     let result = data;
     if (searchTerm) {
