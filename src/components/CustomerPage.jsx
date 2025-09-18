@@ -190,74 +190,80 @@ const CustomerPage = () => {
   };
 
   const handleSave = async (e) => {
-    e.preventDefault();
-    
-    try {
-      if (editingCustomer) {
-        // Update existing vendor
-        const { data, error } = await supabase
-          .from('vendors')
-          .update(formData)
-          .eq('id', editingCustomer.id)
-          .select();
-
-        if (error) throw error;
-      } else {
-        // Insert new vendor
-        const { data, error } = await supabase
-          .from('vendors')
-          .insert([formData])
-          .select();
-
-        if (error) throw error;
-      }
-      
-      // Reset form and close modal
-      setFormData({
-        vendorName: "",
-        country: "",
-        address1: "",
-        address2: "",
-        city: "",
-        state: "",
-        postalCode: "",
-        contactPerson: "",
-        telephone: "",
-        mobile: "",
-        email: "",
-        bankAccountNumber: "",
-        beneficiaryAccountName: "",
-        bankName: "",
-        bankAddress: "",
-        bankBranchState: "",
-        bankBranchName: "",
-        bankMicrCode: "",
-        bankRtgsIfscCode: "",
-        accountType: "",
-        currency: "",
-        panNumber: "",
-        tanNumber: "",
-        gstNumber: "",
-        gstinDivision: "",
-        hsnCode: "",
-        vendorType: "",
-        gstNotApplicableReason: "",
-        msmeVendor: "",
-        msmeCertificationDate: "",
-        msmeRegNo: "",
-        declaration: false
-      });
-      
-      setShowModal(false);
-      setEditingCustomer(null);
-      
-      // Refresh the customer list
-      fetchCustomers();
-    } catch (error) {
-      console.error("Error saving vendor:", error);
-      setError(error.message);
-    }
+  e.preventDefault();
+  
+  // Convert empty strings to null for date fields
+  const processedData = {
+    ...formData,
+    msmeCertificationDate: formData.msmeCertificationDate || null
   };
+  
+  try {
+    if (editingCustomer) {
+      // Update existing vendor
+      const { data, error } = await supabase
+        .from('vendors')
+        .update(processedData)
+        .eq('id', editingCustomer.id)
+        .select();
+
+      if (error) throw error;
+    } else {
+      // Insert new vendor
+      const { data, error } = await supabase
+        .from('vendors')
+        .insert([processedData])
+        .select();
+
+      if (error) throw error;
+    }
+    
+    // Reset form and close modal
+    setFormData({
+      vendorName: "",
+      country: "",
+      address1: "",
+      address2: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      contactPerson: "",
+      telephone: "",
+      mobile: "",
+      email: "",
+      bankAccountNumber: "",
+      beneficiaryAccountName: "",
+      bankName: "",
+      bankAddress: "",
+      bankBranchState: "",
+      bankBranchName: "",
+      bankMicrCode: "",
+      bankRtgsIfscCode: "",
+      accountType: "",
+      currency: "",
+      panNumber: "",
+      tanNumber: "",
+      gstNumber: "",
+      gstinDivision: "",
+      hsnCode: "",
+      vendorType: "",
+      gstNotApplicableReason: "",
+      msmeVendor: "",
+      msmeCertificationDate: "",
+      msmeRegNo: "",
+      declaration: false
+    });
+    
+    setShowModal(false);
+    setEditingCustomer(null);
+    
+    // Refresh the customer list
+    fetchCustomers();
+  } catch (error) {
+    console.error("Error saving vendor:", error);
+    setError(error.message);
+  }
+};
 
   if (loading) return <div className="loading">Loading vendors...</div>;
   if (error) return <div className="error">Error: {error}</div>;
