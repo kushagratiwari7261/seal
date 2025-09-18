@@ -505,6 +505,8 @@ eta: formData.eta ? new Date(formData.eta).toISOString() : null,
         sb_no: formData.sbNo || null,
         container_no: formData.containerNo || null,
         s_line: formData.sLine || null,
+        exporter: formData.exporter || null,
+
         mbl_no: formData.mblNo || null,
         hbl_no: formData.hblNo || null,
         vessel: formData.vessel || null,
