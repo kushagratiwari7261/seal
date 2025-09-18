@@ -4,7 +4,7 @@ const Header = ({ toggleMobileMenu, createNewShipment }) => {
     <div className="header-section">
       <div>
         <h1 className="header-title">SEAL FREIGHT </h1>
-        <p className="header-subtitle">Welcome back, Alex. Here's your freight forwarding overview.</p>
+        <p className="header-subtitle">Welcome back. Here's your freight forwarding overview.</p>
       </div>
       <button className="primary-button" onClick={createNewShipment}>
         <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
