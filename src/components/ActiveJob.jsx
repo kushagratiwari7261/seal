@@ -219,60 +219,61 @@ const ActiveJob = () => {
     }
   }, []);
 
-  // Fetch jobs from Supabase
-  const fetchJobs = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
+ const fetchJobs = useCallback(async () => {
+  try {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('jobs')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    // Map database fields to display fields
+    const mappedJobs = (data || []).map(job => {
+      const locationFields = getLocationFields(job);
       
-      if (error) throw error;
+      // Helper function to safely handle null values
+      const safeValue = (value) => value || '';
       
-      // Map database fields to display fields
-      const mappedJobs = (data || []).map(job => {
-        const locationFields = getLocationFields(job);
-        
-       return {
-    id: job.id,
-    jobNo: job.job_no,
-    client: job.client,
-    from: job.from_location,
-    to: job.to_location,
-    createdAt: job.created_at ? new Date(job.created_at).toLocaleDateString() : '',
-    updatedAt: job.updated_at ? new Date(job.updated_at).toLocaleDateString() : '',
-    // Fix ETA mapping:
-    eta: job.eta ? new Date(job.eta).toLocaleDateString() : '',
-    flight_eta: job.flight_eta ? new Date(job.flight_eta).toLocaleDateString() : '',
-    jobType: job.job_type,
-    tradeDirection: job.trade_direction,
+      return {
+        id: job.id,
+        jobNo: safeValue(job.job_no),
+        client: safeValue(job.client),
+        from: safeValue(job.from_location),
+        to: safeValue(job.to_location),
+        createdAt: job.created_at ? new Date(job.created_at).toLocaleDateString() : '',
+        updatedAt: job.updated_at ? new Date(job.updated_at).toLocaleDateString() : '',
+        // Fix ETA mapping:
+        eta: job.eta ? new Date(job.eta).toLocaleDateString() : '',
+        flight_eta: job.flight_eta ? new Date(job.flight_eta).toLocaleDateString() : '',
+        jobType: safeValue(job.job_type),
+        tradeDirection: safeValue(job.trade_direction),
         
         // Include all fields that might be needed for the summary view
-        shipper: job.shipper,
-        consignee: job.consignee,
-        exporter: job.exporter,
-        importer: job.importer,
+        shipper: safeValue(job.shipper),
+        consignee: safeValue(job.consignee),
+        exporter: safeValue(job.exporter),
+        importer: safeValue(job.importer),
         no_of_packages: job.no_of_packages,
         gross_weight: job.gross_weight,
         chargeable_weight: job.chargeable_weight,
-        name_of_airline: job.name_of_airline,
-        awb: job.awb,
-        airport_of_departure: job.airport_of_departure,
-        airport_of_destination: job.airport_of_destination,
-        shipper_name: job.shipper_name,
-        party_name: job.party_name,
-        transporter: job.transporter,
-        driver_name: job.driver_name,
+        name_of_airline: safeValue(job.name_of_airline),
+        awb: safeValue(job.awb),
+        airport_of_departure: safeValue(job.airport_of_departure),
+        airport_of_destination: safeValue(job.airport_of_destination),
+        shipper_name: safeValue(job.shipper_name),
+        party_name: safeValue(job.party_name),
+        transporter: safeValue(job.transporter),
+        driver_name: safeValue(job.driver_name),
         vehicle_billing_amount: job.vehicle_billing_amount,
         amount: job.amount,
         volume: job.volume,
-        container_no: job.container_no,
-        vessel: job.vessel,
-        pol: job.pol,
-        pod: job.pod,
-        
+        container_no: safeValue(job.container_no),
+        vessel: safeValue(job.vessel),
+        pol: safeValue(job.pol),
+        pod: safeValue(job.pod),
         // Add all other original fields from the database
         ...job
       };
@@ -443,7 +444,8 @@ const ActiveJob = () => {
       setLoading(false);
     }
   }, [orgFormData, validationErrors]);
-const handleCreateJob = useCallback(async () => {
+
+  const handleCreateJob = useCallback(async () => {
   try {
     setLoading(true);
     
@@ -459,26 +461,26 @@ const handleCreateJob = useCallback(async () => {
       return value;
     };
 
-    // Prepare job data for insertion with proper value handling
-    const jobData = {
-      // Map all your fields to match database columns
-      job_no: formData.jobNo,
-      client: formData.client,
-      shipper: formData.shipper,
-      consignee: formData.consignee,
-      invoice_no: formData.invoiceNo || null, // Add this line - FIX FOR INVOICE NUMBER
-      
-      // Handle numeric fields
-      no_of_packages: cleanNumericValue(formData.no_of_packages),
-      gross_weight: cleanNumericValue(formData.grossWeight),
-      chargeable_weight: cleanNumericValue(formData.chargeable_weight),
-      no_of_cartoons: cleanNumericValue(formData.noOfCartoons),
-      gr_weight: cleanNumericValue(formData.grWeight),
-      net_weight: cleanNumericValue(formData.netWeight),
-      no_of_cntr: cleanNumericValue(formData.noOfCntr),
-      volume: cleanNumericValue(formData.volume),
-      fob: cleanNumericValue(formData.fob),
-     
+      // Prepare job data for insertion with proper value handling
+      const jobData = {
+        // Map all your fields to match database columns
+        job_no: formData.jobNo,
+        client: formData.client,
+        shipper: formData.shipper,
+        consignee: formData.consignee,
+        
+        // Handle numeric fields
+        no_of_packages: cleanNumericValue(formData.no_of_packages),
+        gross_weight: cleanNumericValue(formData.grossWeight),
+        chargeable_weight: cleanNumericValue(formData.chargeable_weight),
+        no_of_cartoons: cleanNumericValue(formData.noOfCartoons),
+        gr_weight: cleanNumericValue(formData.grWeight),
+        net_weight: cleanNumericValue(formData.netWeight),
+        no_of_cntr: cleanNumericValue(formData.noOfCntr),
+        volume: cleanNumericValue(formData.volume),
+        invoice_no: formData.invoiceNo ,
+        fob: cleanNumericValue(formData.fob),
+        
         // Handle date fields
         job_date: formData.jobDate ? new Date(formData.jobDate).toISOString() : null,
        
@@ -550,40 +552,42 @@ eta: formData.eta ? new Date(formData.eta).toISOString() : null,
         updated_at: new Date().toISOString()
       };
       
-      let result;
-      if (editingJob) {
-        // Update existing job
-        const { data: updatedJob, error } = await supabase
-          .from('jobs')
-          .update(jobData)
-          .eq('id', editingJob.id)
-          .select();
-        
-        if (error) throw error;
-        result = updatedJob;
-      } else {
-        // Create new job
-        const { data: newJob, error } = await supabase
-          .from('jobs')
-          .insert([jobData])
-          .select();
-        
-        if (error) throw error;
-        result = newJob;
-      }
+       
+    let result;
+    if (editingJob) {
+      // Update existing job - request all fields including updated_at
+      const { data: updatedJob, error } = await supabase
+        .from('jobs')
+        .update(jobData)
+        .eq('id', editingJob.id)
+        .select('*'); // Select all fields including updated_at
       
-      handleCancel();
-      setSuccess(editingJob ? 'Job updated successfully!' : 'Job created successfully!');
+      if (error) throw error;
+      result = updatedJob;
+    } else {
+      // Create new job - request all fields including created_at and updated_at
+      const { data: newJob, error } = await supabase
+        .from('jobs')
+        .insert([jobData])
+        .select('*'); // Select all fields including created_at and updated_at
       
-      // Refresh the jobs list immediately after creating/updating a job
-      fetchJobs();
-    } catch (error) {
-      console.error('Error saving job:', error);
-      setError(error.message);
-    } finally {
-      setLoading(false);
+      if (error) throw error;
+      result = newJob;
     }
-  }, [formData, jobType, tradeDirection, editingJob, handleCancel, fetchJobs]);
+    
+    handleCancel();
+    setSuccess(editingJob ? 'Job updated successfully!' : 'Job created successfully!');
+    
+    // Refresh the jobs list immediately after creating/updating a job
+    fetchJobs();
+  } catch (error) {
+    console.error('Error saving job:', error);
+    setError(error.message);
+  } finally {
+    setLoading(false);
+  }
+}, [formData, jobType, tradeDirection, editingJob, handleCancel, fetchJobs]);
+
 
   // Handle edit job
 const handleEditJob = useCallback((job) => {
@@ -591,21 +595,24 @@ const handleEditJob = useCallback((job) => {
   setJobType(job.job_type);
   setTradeDirection(job.trade_direction);
   
+  // Helper function to safely handle null/undefined values
+  const safeValue = (value) => value || '';
+  
   // Map database fields to form fields
   const formDataFromJob = {
-    jobNo: job.job_no,
-    client: job.client,
-    shipper: job.shipper,
-    consignee: job.consignee,
-    no_of_packages: job.no_of_packages,
-    grossWeight: job.gross_weight,
-    chargeable_weight: job.chargeable_weight,
-    noOfCartoons: job.no_of_cartoons,
-    grWeight: job.gr_weight,
-    netWeight: job.net_weight,
-    noOfCntr: job.no_of_cntr,
-    volume: job.volume,
-    fob: job.fob,
+    jobNo: safeValue(job.job_no),
+    client: safeValue(job.client),
+    shipper: safeValue(job.shipper),
+    consignee: safeValue(job.consignee),
+    no_of_packages: safeValue(job.no_of_packages),
+    grossWeight: safeValue(job.gross_weight),
+    chargeable_weight: safeValue(job.chargeable_weight),
+    noOfCartoons: safeValue(job.no_of_cartoons),
+    grWeight: safeValue(job.gr_weight),
+    netWeight: safeValue(job.net_weight),
+    noOfCntr: safeValue(job.no_of_cntr),
+    volume: safeValue(job.volume),
+    fob: safeValue(job.fob),
     jobDate: job.job_date ? new Date(job.job_date).toISOString().split('T')[0] : '',
     etd: job.etd ? new Date(job.etd).toISOString().split('T')[0] : '',
     eta: job.eta ? new Date(job.eta).toISOString().split('T')[0] : '',
@@ -618,64 +625,65 @@ const handleEditJob = useCallback((job) => {
     hblDt: job.hbl_dt ? new Date(job.hbl_dt).toISOString().split('T')[0] : '',
     railOutDate: job.rail_out_date ? new Date(job.rail_out_date).toISOString().split('T')[0] : '',
     billDate: job.bill_date ? new Date(job.bill_date).toISOString().split('T')[0] : '',
-    pol: job.pol || '',
-    pod: job.pod || '',
-    destination: job.destination || '',
-    commodity: job.commodity || '',
-    terms: job.terms || '',
-    sbNo: job.sb_no || '',
-    containerNo: job.container_no || '',
-    sLine: job.s_line || '',
-    mblNo: job.mbl_no || '',
-    hblNo: job.hbl_no || '',
-    vessel: job.vessel || '',
-    voy: job.voy || '',
-    sob: job.sob || '',
-    ac: job.ac || '',
-    billNo: job.bill_no || '',
-    ccPort: job.cc_port || '',
-    notify_party: job.notify_party || '',
-    airport_of_departure: job.airport_of_departure || '',
-    airport_of_destination: job.airport_of_destination || '',
-    dimension_cms: job.dimension_cms || '',
-    client_no: job.client_no || '',
-    name_of_airline: job.name_of_airline || '',
-    awb: job.awb || '',
-    flight_from: job.flight_from || '',
-    flight_to: job.flight_to || '',
-    exporter: job.exporter || '',
-    importer: job.importer || '',
-    invoiceNo: job.invoice_no || '', // Add this line - FIX FOR INVOICE NUMBER
+    pol: safeValue(job.pol),
+    pod: safeValue(job.pod),
+    destination: safeValue(job.destination),
+    commodity: safeValue(job.commodity),
+    terms: safeValue(job.terms),
+    sbNo: safeValue(job.sb_no),
+    containerNo: safeValue(job.container_no),
+    sLine: safeValue(job.s_line),
+    mblNo: safeValue(job.mbl_no),
+    hblNo: safeValue(job.hbl_no),
+    vessel: safeValue(job.vessel),
+    voy: safeValue(job.voy),
+    sob: safeValue(job.sob),
+    ac: safeValue(job.ac),
+    billNo: safeValue(job.bill_no),
+    ccPort: safeValue(job.cc_port),
+    notify_party: safeValue(job.notify_party),
+    airport_of_departure: safeValue(job.airport_of_departure),
+    airport_of_destination: safeValue(job.airport_of_destination),
+    dimension_cms: safeValue(job.dimension_cms),
+    client_no: safeValue(job.client_no),
+    name_of_airline: safeValue(job.name_of_airline),
+    awb: safeValue(job.awb),
+    flight_from: safeValue(job.flight_from),
+    flight_to: safeValue(job.flight_to),
+    exporter: safeValue(job.exporter),
+    importer: safeValue(job.importer),
+    invoiceNo: safeValue(job.invoice_no),
     
     // Transport fields
-    port: job.port || '',
-    trailer_no: job.trailer_no || '',
-    size: job.size || '',
-    lrn_no: job.lrn_no || '',
-    from: job.from_location || '',
-    to: job.to_location || '',
-    shipper_name: job.shipper_name || '',
-    party_name: job.party_name || '',
+    port: safeValue(job.port),
+    trailer_no: safeValue(job.trailer_no),
+    size: safeValue(job.size),
+    lrn_no: safeValue(job.lrn_no),
+    from: safeValue(job.from_location),
+    to: safeValue(job.to_location),
+    shipper_name: safeValue(job.shipper_name),
+    party_name: safeValue(job.party_name),
     factory_reporting_date: job.factory_reporting_date ? new Date(job.factory_reporting_date).toISOString().split('T')[0] : '',
     factory_reporting_out: job.factory_reporting_out ? new Date(job.factory_reporting_out).toISOString().split('T')[0] : '',
     offloading_date: job.offloading_date ? new Date(job.offloading_date).toISOString().split('T')[0] : '',
-    days_of_detention: job.days_of_detention || '',
-    transporter: job.transporter || '',
-    vehicle_buy_amount: job.vehicle_buy_amount || '',
-    vehicle_billing_amount: job.vehicle_billing_amount || '',
-    movement: job.movement || '',
-    driver_name: job.driver_name || '',
-    driver_mobile_no: job.driver_mobile_no || '',
-    bill_no: job.bill_no || '',
+    days_of_detention: safeValue(job.days_of_detention),
+    transporter: safeValue(job.transporter),
+    vehicle_buy_amount: safeValue(job.vehicle_buy_amount),
+    vehicle_billing_amount: safeValue(job.vehicle_billing_amount),
+    movement: safeValue(job.movement),
+    driver_name: safeValue(job.driver_name),
+    driver_mobile_no: safeValue(job.driver_mobile_no),
+    bill_no: safeValue(job.bill_no),
     bill_date: job.bill_date ? new Date(job.bill_date).toISOString().split('T')[0] : '',
-    amount: job.amount || '',
+    amount: safeValue(job.amount),
   };
   
   setFormData(formDataFromJob);
   setShowJobForm(true);
-  setActiveStep(3); // Start at port details step for editing
+  setActiveStep(3);
 }, []);
-
+  
+ 
   // Handle delete job
   const handleDeleteJob = useCallback(async () => {
     try {
@@ -1391,24 +1399,9 @@ const renderJobSummary = useCallback(() => {
         </>
       ) :  (
                       <>
-                        <div className="shipper-section">
-                          <span className="label">Shipper</span>
-                          <span className="value">{formData.shipper}</span>
-                        </div>
-                          // In the job summary view (renderJobSummary function):
-<div className="summary-row">
-  <span className="label">ETD:</span>
-  <span className="value">
-    {selectedJob.etd ? new Date(selectedJob.etd).toLocaleString() : 'N/A'}
-  </span>
-</div>
-<div className="summary-row">
-  <span className="label">ETA:</span>
-  <span className="value">
-    {selectedJob.eta ? new Date(selectedJob.eta).toLocaleString() : 'N/A'}
-  </span>
-</div>
                         
+                          
+
 
                         <div className="divider"></div>
 
