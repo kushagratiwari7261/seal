@@ -346,22 +346,20 @@ const CustomerPage = () => {
                       value={formData.vendorName}
                       onChange={handleInputChange}
                       placeholder="Vendor Name" 
-                      required 
+                      
                     />
                   </div>
                   <div className="form-group">
                     <label>Country *</label>
-                    <select 
+                    <input 
                       name="country" 
                       value={formData.country}
                       onChange={handleInputChange}
-                      required
+                      placeholder="country"
+                      
                     >
-                      <option value="">Select Country</option>
-                      {countries.map(country => (
-                        <option key={country} value={country}>{country}</option>
-                      ))}
-                    </select>
+                     
+                    </input>
                   </div>
                 </div>
                 
@@ -372,7 +370,7 @@ const CustomerPage = () => {
                     value={formData.address1}
                     onChange={handleInputChange}
                     placeholder="Address Line 1" 
-                    required 
+                    
                   />
                 </div>
                 
@@ -394,22 +392,20 @@ const CustomerPage = () => {
                       value={formData.city}
                       onChange={handleInputChange}
                       placeholder="City" 
-                      required 
+                      
                     />
                   </div>
                   <div className="form-group">
                     <label>State *</label>
-                    <select 
+                    <input
                       name="state" 
                       value={formData.state}
                       onChange={handleInputChange}
-                      required
+                      placeholder="state"
+                      
                     >
-                      <option value="">Select State</option>
-                      {states.map(state => (
-                        <option key={state} value={state}>{state}</option>
-                      ))}
-                    </select>
+                     
+                    </input>
                   </div>
                   <div className="form-group">
                     <label>Postal Code *</label>
@@ -418,7 +414,7 @@ const CustomerPage = () => {
                       value={formData.postalCode}
                       onChange={handleInputChange}
                       placeholder="Postal Code" 
-                      required 
+                    
                     />
                   </div>
                 </div>
@@ -434,7 +430,7 @@ const CustomerPage = () => {
                       value={formData.contactPerson}
                       onChange={handleInputChange}
                       placeholder="Contact Person" 
-                      required 
+                      
                     />
                   </div>
                   <div className="form-group">
@@ -456,7 +452,7 @@ const CustomerPage = () => {
                       value={formData.mobile}
                       onChange={handleInputChange}
                       placeholder="Mobile Number" 
-                      required 
+                      
                     />
                   </div>
                   <div className="form-group">
@@ -467,7 +463,7 @@ const CustomerPage = () => {
                       value={formData.email}
                       onChange={handleInputChange}
                       placeholder="Email Address" 
-                      required 
+                       
                     />
                   </div>
                 </div>
@@ -483,7 +479,7 @@ const CustomerPage = () => {
                       value={formData.bankAccountNumber}
                       onChange={handleInputChange}
                       placeholder="Bank Account Number" 
-                      required 
+                       
                     />
                   </div>
                   <div className="form-group">
@@ -493,7 +489,7 @@ const CustomerPage = () => {
                       value={formData.beneficiaryAccountName}
                       onChange={handleInputChange}
                       placeholder="Beneficiary Account Name" 
-                      required 
+                       
                     />
                   </div>
                 </div>
@@ -506,7 +502,7 @@ const CustomerPage = () => {
                       value={formData.bankName}
                       onChange={handleInputChange}
                       placeholder="Bank Name" 
-                      required 
+                       
                     />
                   </div>
                   <div className="form-group">
@@ -516,7 +512,7 @@ const CustomerPage = () => {
                       value={formData.bankBranchName}
                       onChange={handleInputChange}
                       placeholder="Bank Branch Name" 
-                      required 
+                       
                     />
                   </div>
                 </div>
@@ -528,7 +524,7 @@ const CustomerPage = () => {
                     value={formData.bankAddress}
                     onChange={handleInputChange}
                     placeholder="Bank Address" 
-                    required 
+                    
                   />
                 </div>
                 
@@ -540,7 +536,7 @@ const CustomerPage = () => {
                       value={formData.bankBranchState}
                       onChange={handleInputChange}
                       placeholder="Bank Branch State" 
-                      required 
+                       
                     />
                   </div>
                   <div className="form-group">
@@ -562,7 +558,7 @@ const CustomerPage = () => {
                       value={formData.bankRtgsIfscCode}
                       onChange={handleInputChange}
                       placeholder="Bank RTGS/IFSC Code" 
-                      required 
+                      
                     />
                   </div>
                   <div className="form-group">
@@ -571,7 +567,7 @@ const CustomerPage = () => {
                       name="accountType" 
                       value={formData.accountType}
                       onChange={handleInputChange}
-                      required
+                      
                     >
                       <option value="">Select Account Type</option>
                       <option value="savings">Savings</option>
@@ -585,13 +581,14 @@ const CustomerPage = () => {
                       name="currency" 
                       value={formData.currency}
                       onChange={handleInputChange}
-                      required
+                      
                     >
                       <option value="">Select Currency</option>
                       <option value="INR">Indian Rupee (INR)</option>
                       <option value="USD">US Dollar (USD)</option>
                       <option value="EUR">Euro (EUR)</option>
                       <option value="GBP">British Pound (GBP)</option>
+                      <option value="AED">United Arab Emirates Dirham(AED)</option>
                     </select>
                   </div>
                 </div>
@@ -607,7 +604,7 @@ const CustomerPage = () => {
                       value={formData.panNumber}
                       onChange={handleInputChange}
                       placeholder="PAN Number" 
-                      required 
+                      
                     />
                   </div>
                   <div className="form-group">
@@ -649,7 +646,7 @@ const CustomerPage = () => {
                     value={formData.hsnCode}
                     onChange={handleInputChange}
                     placeholder="HSN Code" 
-                    required 
+                    
                   />
                 </div>
                 
@@ -660,7 +657,7 @@ const CustomerPage = () => {
                       name="vendorType" 
                       value={formData.vendorType}
                       onChange={handleInputChange}
-                      required
+                      
                     >
                       <option value="">Select Vendor Type</option>
                       <option value="manufacturer">Manufacturer</option>
@@ -728,7 +725,7 @@ const CustomerPage = () => {
                       type="checkbox"
                       checked={formData.declaration}
                       onChange={handleInputChange}
-                      required
+                      
                     />
                     We hereby certify that above mentioned details are correct. We further confirm that the said details can be used by Seal Freight Forwarders Pvt. Ltd. for online remittance of funds. The responsibility of any delay in payment and additional processing charges due to incorrect details vest with us.
                   </label>
