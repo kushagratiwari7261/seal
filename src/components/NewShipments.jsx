@@ -957,69 +957,76 @@ const handleConfirmShipment = useCallback(async () => {
       )}
       
       {/* Shipment List View */}
-      <div className="card expandable-card">
-        <div className="table-header">
-          <h2>Current Shipments</h2>
-          <button className="add-shipment-btn" onClick={() => setShowShipmentForm(true)}>
-            <span className="plus-icon">+</span>
-            Add Shipment
-          </button>
-        </div>
-        <div
-          className="table-container"
-          ref={tableContainerRef}
-          style={{ maxHeight: maxHeight, overflowY: 'auto' }}
-        >
-          <table className="activity-table">
-            <thead>
-              <tr>
-                <th>Shipment No.</th>
-                <th>Client</th>
-                <th>Job No.</th>
-                <th>POR</th>
-                <th>POF</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shipments.length > 0 ? (
-                shipments.map((shipment, index) => (
-                  <tr key={index}>
-                    <td>{shipment.shipmentNo}</td>
-                    <td>{shipment.client}</td>
-                    <td>{shipment.jobNo}</td>
-                    <td>{shipment.por}</td>
-                    <td>{shipment.pof}</td>
-                    <td className="actions-cell">
-                      <button 
-                        className="edit-btn"
-                        onClick={() => handleEditShipment(shipment)}
-                        title="Edit Shipment"
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        className="delete-btn"
-                        onClick={() => confirmDelete(shipment)}
-                        title="Delete Shipment"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" style={{textAlign: 'center', padding: '20px'}}>
-                    No shipments found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
+     <div className="card expandable-card">
+  <div className="table-header">
+    <h2>Current Shipments</h2>
+    <button className="add-shipment-btn" onClick={() => setShowShipmentForm(true)}>
+      <span className="plus-icon">+</span>
+      Add Shipment
+    </button>
+  </div>
+  <div
+    className="table-container"
+    ref={tableContainerRef}
+    style={{ maxHeight: maxHeight, overflowY: 'auto' }}
+  >
+    <table className="activity-table">
+      <thead>
+        <tr>
+          <th>Shipment No.</th>
+          <th>Client</th>
+          <th>Job No.</th>
+          <th>POR</th>
+          <th>POF</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {shipments.length > 0 ? (
+          shipments.map((shipment, index) => (
+            <tr key={index}>
+              <td>{shipment.shipmentNo}</td>
+              <td>{shipment.client}</td>
+              <td>{shipment.jobNo}</td>
+              <td>{shipment.por}</td>
+              <td>{shipment.pof}</td>
+              <td className="actions-cell">
+                <button 
+                  className="edit-btn"
+                  onClick={() => handleEditShipment(shipment)}
+                  title="Edit Shipment"
+                >
+                  Edit
+                </button>
+                <button 
+                  className="delete-btn"
+                  onClick={() => confirmDelete(shipment)}
+                  title="Delete Shipment"
+                >
+                  Delete
+                </button>
+                <PDFDownloadLink 
+                  document={<PDFGenerator shipmentData={shipment} />} 
+                  fileName={`${shipment.shipmentNo}.pdf`}
+                  className="pdf-download-btn"
+                  title="Download PDF"
+                >
+                  {({ loading }) => loading ? 'Generating...' : 'PDF'}
+                </PDFDownloadLink>
+              </td>
+            </tr>
+          ))
+        ) : (
+          <tr>
+            <td colSpan="6" style={{textAlign: 'center', padding: '20px'}}>
+              No shipments found
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</div>
       {/* Shipment Creation/Edit Form Modal */}
       {showShipmentForm && (
         <div className="modal-overlay">

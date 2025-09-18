@@ -1092,3 +1092,25 @@
   cursor: pointer;
   font-weight: bold;
 }
+.pdf-download-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: 5px;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.pdf-download-btn:hover {
+  background-color: #45a049;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 5px;
+  flex-wrap: nowrap;
+}
