@@ -41,6 +41,8 @@ const INITIAL_FORM_DATA = {
   freight: '',
   payableAt: '',
   dispatchAt: '',
+    lclFcl: '', // Add this line
+
   
   // Sea freight fields
   pol: '',
@@ -54,6 +56,7 @@ const INITIAL_FORM_DATA = {
   remarks: '',
   
   // Sea freight step 2 fields
+   containerType: '', // Add container type field
   exporter: '',
   importer: '',
   invoiceNo: '',
@@ -66,7 +69,7 @@ const INITIAL_FORM_DATA = {
   sbDate: '',
   destination: '',
   commodity: '',
-  fob: '',
+  invoiceValue: '',
   grWeight: '',
   netWeight: '',
   railOutDate: '',
@@ -101,7 +104,7 @@ const INITIAL_FORM_DATA = {
   
   // Transport fields
   port: '',
-  trailer_no: '',
+   vehicle_type: '', 
   size: '',
   lrn_no: '',
   from: '',
@@ -172,30 +175,30 @@ const ActiveJob = () => {
             'flight_to', 'flight_eta', 'invoiceNo', 'invoiceDate'],
         4: []
       };
-    } else if (jobType === 'TRANSPORT') {
-      return {
-        1: ['jobType'],
-        2: ['tradeDirection'],
-        3: ['jobNo', 'port', 'trailer_no', 'containerNo', 'size', 'lrn_no', 'from', 'to',
-            'shipper_name', 'party_name', 'factory_reporting_date', 'factory_reporting_out',
-            'offloading_date', 'days_of_detention', 'transporter', 'vehicle_buy_amount',
-            'vehicle_billing_amount', 'movement', 'driver_name', 'driver_mobile_no',
-            'bill_no', 'bill_date', 'amount'],
-        4: []
-      };
-    } else {
-      return {
-        1: ['jobType'],
-        2: ['tradeDirection'],
-        3: ['jobNo', 'exporter', 'importer', 'invoiceNo', 'invoiceDate', 'stuffingDate', 
-            'hoDate', 'terms', 'consignee', 'noOfCartoons', 'sbNo', 'sbDate',
-            'pol', 'pod', 'destination', 'commodity', 'fob', 'grWeight', 
-            'netWeight', 'railOutDate', 'containerNo', 'noOfCntr', 'volume',
-            'sLine', 'mblNo', 'mblDate', 'hblNo', 'hblDt', 'vessel', 'voy',
-            'etd', 'sob', 'eta', 'ac', 'billNo', 'billDate', 'ccPort'],
-        4: []
-      };
-    }
+ } else if (jobType === 'TRANSPORT') {
+  return {
+    1: ['jobType'],
+    2: ['tradeDirection'],
+    3: ['lclFcl', 'jobNo', 'port', 'vehicle_type', 'containerNo', 'containerType', 'size', 'lrn_no', 'from', 'to',
+        'shipper_name', 'party_name', 'factory_reporting_date', 'factory_reporting_out',
+        'offloading_date', 'days_of_detention', 'transporter', 'vehicle_buy_amount',
+        'vehicle_billing_amount', 'movement', 'driver_name', 'driver_mobile_no',
+        'bill_no', 'bill_date', 'amount'],
+    4: []
+  };
+} else {
+  return {
+    1: ['jobType'],
+    2: ['tradeDirection'],
+    3: ['jobNo', 'exporter', 'importer', 'invoiceNo', 'invoiceDate', 'stuffingDate', 
+        'hoDate', 'terms', 'consignee', 'noOfCartoons', 'sbNo', 'sbDate',
+        'pol', 'pod', 'destination', 'commodity', 'invoiceValue',
+        'grWeight', 'netWeight', 'railOutDate', 'containerNo', 'containerType', 'noOfCntr', 'volume',
+        'sLine', 'mblNo', 'mblDate', 'hblNo', 'hblDt', 'vessel', 'voy',
+        'etd', 'sob', 'eta', 'ac', 'billNo', 'billDate', 'ccPort'],
+    4: []
+  };
+}
   }, [jobType]);
 
   // Function to get location fields based on job type
@@ -479,7 +482,7 @@ const ActiveJob = () => {
         no_of_cntr: cleanNumericValue(formData.noOfCntr),
         volume: cleanNumericValue(formData.volume),
         invoice_no: formData.invoiceNo ,
-        fob: cleanNumericValue(formData.fob),
+          fob: cleanNumericValue(formData.invoiceValue),
         
         // Handle date fields
         job_date: formData.jobDate ? new Date(formData.jobDate).toISOString() : null,
@@ -498,6 +501,9 @@ eta: formData.eta ? new Date(formData.eta).toISOString() : null,
         
         // Text fields
         pol: formData.pol || null,
+         lcl_fcl: formData.lclFcl || null,
+          container_type: formData.containerType || null, 
+
         pod: formData.pod || null,
         destination: formData.destination || null,
         commodity: formData.commodity || null,
@@ -527,7 +533,7 @@ eta: formData.eta ? new Date(formData.eta).toISOString() : null,
         
         // Transport fields
         port: formData.port || null,
-        trailer_no: formData.trailer_no || null,
+        vehicle_type: formData.vehicle_type || null,
         size: formData.size || null,
         lrn_no: formData.lrn_no || null,
         from_location: formData.from || null,
@@ -612,9 +618,10 @@ const handleEditJob = useCallback((job) => {
     noOfCartoons: safeValue(job.no_of_cartoons),
     grWeight: safeValue(job.gr_weight),
     netWeight: safeValue(job.net_weight),
+     lclFcl: safeValue(job.lcl_fcl),
     noOfCntr: safeValue(job.no_of_cntr),
     volume: safeValue(job.volume),
-    fob: safeValue(job.fob),
+   invoiceValue: safeValue(job.fob),
     jobDate: job.job_date ? new Date(job.job_date).toISOString().split('T')[0] : '',
     etd: job.etd ? new Date(job.etd).toISOString().split('T')[0] : '',
     eta: job.eta ? new Date(job.eta).toISOString().split('T')[0] : '',
@@ -628,6 +635,7 @@ const handleEditJob = useCallback((job) => {
     railOutDate: job.rail_out_date ? new Date(job.rail_out_date).toISOString().split('T')[0] : '',
     billDate: job.bill_date ? new Date(job.bill_date).toISOString().split('T')[0] : '',
     pol: safeValue(job.pol),
+      containerType: safeValue(job.container_type), 
     pod: safeValue(job.pod),
     destination: safeValue(job.destination),
     commodity: safeValue(job.commodity),
@@ -658,8 +666,7 @@ const handleEditJob = useCallback((job) => {
     
     // Transport fields
     port: safeValue(job.port),
-    trailer_no: safeValue(job.trailer_no),
-    size: safeValue(job.size),
+    vehicle_type: safeValue(job.vehicle_type),
     lrn_no: safeValue(job.lrn_no),
     from: safeValue(job.from_location),
     to: safeValue(job.to_location),
@@ -782,15 +789,34 @@ const getLocationColumnHeaders = useCallback((jobType) => {
           </div>
         </div>
       );
+      
      } else if (jobType === 'TRANSPORT') {
-      return (
-        <div className="port-details-form">
-          <h2>Transport Details - {tradeDirection}</h2>
-          <div className="form-grid-two-column">
+       return (
+    <div className="port-details-form">
+      <h2>Transport Details - {tradeDirection}</h2>
+      <div className="form-grid-two-column">
+        {/* Add LCL/FCL dropdown at the top */}
+        <div className="form-group">
+          <label>LCL/FCL <span className="required">*</span></label>
+          <select 
+            name="lclFcl"
+            value={formData.lclFcl}
+            onChange={handleInputChange}
+            className={validationErrors.lclFcl ? 'error' : ''}
+          >
+            <option value="">Select</option>
+            <option value="LCL">LCL</option>
+            <option value="FCL">FCL</option>
+          </select>
+          {validationErrors.lclFcl && 
+            <span className="field-error">{validationErrors.lclFcl}</span>
+          }
+        </div>
             {[
               { label: 'Job No.', name: 'jobNo', type: 'number' },
               { label: 'Port', name: 'port', type: 'text' },
-              { label: 'Trailer No', name: 'trailer_no', type: 'text' },
+               { label: 'Container Type', name: 'containerType', type: 'text', condition: true }, 
+                { label: 'Vehicle Type', name: 'vehicle_type', type: 'text' }, 
               { label: 'Container No', name: 'containerNo', type: 'text' },
               { label: 'Size', name: 'size', type: 'text' },
               { label: 'LRN No', name: 'lrn_no', type: 'text' },
@@ -844,6 +870,7 @@ const getLocationColumnHeaders = useCallback((jobType) => {
               { label: 'Importer', name: 'importer', type: 'text', condition: tradeDirection === 'IMPORT' },
               { label: 'Invoice No', name: 'invoiceNo', type: 'text', condition: true },
               { label: 'Invoice Date', name: 'invoiceDate', type: 'date', condition: true },
+               { label: 'Container Type', name: 'containerType', type: 'text', condition: true }, 
               { label: 'Stuffing Date', name: 'stuffingDate', type: 'date', condition: true },
               { label: 'H/O Date', name: 'hoDate', type: 'date', condition: true },
               { label: 'Terms', name: 'terms', type: 'text', condition: true },
@@ -855,7 +882,7 @@ const getLocationColumnHeaders = useCallback((jobType) => {
               { label: 'To', name: 'pod', type: 'text', condition: true },
               { label: 'Destination', name: 'destination', type: 'text', condition: true },
               { label: 'Commodity', name: 'commodity', type: 'text', condition: true },
-              { label: 'FOB', name: 'fob', type: 'text', condition: true },
+             { label: 'Invoice Value', name: 'invoiceValue', type: 'text', condition: true }, 
               { label: 'GR Weight', name: 'grWeight', type: 'number', condition: true },
               { label: 'Net Weight', name: 'netWeight', type: 'number', condition: true },
               { label: 'RAIL Out Date', name: 'railOutDate', type: 'date', condition: true },
@@ -1021,7 +1048,25 @@ const renderJobSummary = useCallback(() => {
                 </div>
               </div>
             ) : selectedJob.jobType === 'TRANSPORT' ? (
+
+
+              
+              
               <div className="summary-grid">
+                <div className="summary-row">
+        <span className="label">LCL/FCL:</span>
+        <span className="value">{getValue(selectedJob.lcl_fcl)}</span>
+      </div>
+              <div className="summary-row">
+        <span className="label">Vehicle Type:</span> {/* Changed from Trailer No */}
+        <span className="value">{getValue(selectedJob.vehicle_type)}</span> {/* Changed from trailer_no */}
+
+      </div>
+
+<div className="summary-row">
+        <span className="label">Container Type:</span> {/* Add container type */}
+        <span className="value">{getValue(selectedJob.container_type)}</span>
+      </div>
                 <div className="summary-row">
                   <span className="label">Shipper Name:</span>
                   <span className="value">{getValue(selectedJob.shipper_name)}</span>
@@ -1048,11 +1093,21 @@ const renderJobSummary = useCallback(() => {
                 </div>
               </div>
             ) : (
+              
               <div className="summary-grid">
                 <div className="summary-row">
                   <span className="label">Shipper:</span>
                   <span className="value">{getValue(selectedJob.shipper)}</span>
                 </div>
+                <div className="summary-row">
+        <span className="label">Invoice Value:</span> {/* Changed from FOB */}
+        <span className="value">{getValue(selectedJob.fob)}</span> {/* Still using fob from database */}
+      </div>
+      <div className="summary-row">
+        <span className="label">Container Type:</span> {/* Add container type */}
+        <span className="value">{getValue(selectedJob.container_type)}</span>
+      </div>
+
                 <div className="summary-row">
                   <span className="label">Consignee:</span>
                   <span className="value">{getValue(selectedJob.consignee)}</span>
@@ -1369,12 +1424,14 @@ const renderJobSummary = useCallback(() => {
               {[
                 { label: 'Job No:', value: formData.jobNo },
                 { label: 'Port:', value: formData.port },
-                { label: 'Trailer No:', value: formData.trailer_no },
+                 { label: 'LCL/FCL:', value: formData.lclFcl },
+{ label: 'Vehicle Type:', value: formData.vehicle_type },
                 { label: 'Container No:', value: formData.containerNo },
                 { label: 'Size:', value: formData.size },
                 { label: 'LRN No:', value: formData.lrn_no },
                 { label: 'From:', value: formData.from },
                 { label: 'To:', value: formData.to },
+                 { label: 'Container Type:', value: formData.containerType },
                 { label: 'Shipper Name:', value: formData.shipper_name },
                 { label: 'Party Name:', value: formData.party_name },
                 { label: 'Factory Reporting Date:', value: formData.factory_reporting_date },
@@ -1421,13 +1478,14 @@ const renderJobSummary = useCallback(() => {
                               { label: 'Terms:', value: formData.terms },
                               { label: 'Consignee:', value: formData.consignee },
                              
+                               { label: 'Container Type:', value: formData.containerType },
                               { label: 'S/B No:', value: formData.sbNo },
                               { label: 'S/B Date:', value: formData.sbDate },
                               { label: 'POL:', value: formData.pol },
                               { label: 'POD:', value: formData.pod },
                               { label: 'Destination:', value: formData.destination },
                               { label: 'Commodity:', value: formData.commodity },
-                              { label: 'FOB:', value: formData.fob },
+                              { label: 'Invoice Value:', value: formData.invoiceValue },
                               { label: 'GR Weight:', value: formData.grWeight },
                               { label: 'Net Weight:', value: formData.netWeight },
                               { label: 'RAIL Out Date:', value: formData.railOutDate },

@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import './NewShipments.css';
 
 // Constants for better maintainability
-const SHIPMENT_TYPES = ['AIR FREIGHT', 'SEA FREIGHT', 'LAND', 'TRANSPORT', 'OTHERS'];
+const SHIPMENT_TYPES = ['AIR FREIGHT', 'SEA FREIGHT', 'TRANSPORT', 'OTHERS'];
 const STEPS = ['Create Shipment', 'Port Details', 'Summary'];
 const CATEGORIES = [
   'AGENT', 'ARLINE', 'BANK', 'BIKE', 'BIOKER', 'BUYER', 
@@ -17,7 +17,7 @@ const TRADE_DIRECTIONS = {
   'AIR FREIGHT': ['EXPORT', 'IMPORT'],
   'SEA FREIGHT': ['EXPORT', 'IMPORT'],
   'LAND': ['EXPORT', 'IMPORT'],
-  'TRANSPORT': ['DOMESTIC'],
+  'TRANSPORT': ['EXPORT', 'IMPORT'],
   'OTHERS': ['GENERAL']
 };
 
@@ -43,6 +43,7 @@ const INITIAL_FORM_DATA = {
   freight: '',
   payableAt: '',
   dispatchAt: '',
+  lclFcl: '',
   
   // Additional fields for summary
   HSCode: '',
@@ -183,6 +184,7 @@ const NewShipments = () => {
         consignee: job.consignee || '',
         address: job.address || '',
         por: job.por || '',
+         lcl_fcl: job.lcl_fcl || '',
         poi: job.poi || '',
         pod: job.pod || '',
         pof: job.pof || '',
@@ -363,6 +365,7 @@ const handleJobSelect = async (e) => {
         pod: data.pod || prev.pod,
         pof: data.pof || prev.pof,
         hblNo: data.hbl_no || prev.hblNo,
+         lclFcl: data.lcl_fcl || prev.lclFcl,
         // Use date-only formatting for ETD/ETA
         etd: formatDateOnly(data.etd) || prev.etd,
         eta: formatDateOnly(data.eta) || prev.eta,
@@ -594,6 +597,7 @@ const handleConfirmShipment = useCallback(async () => {
         job_no: formatStringForDB(formData.jobNo),
         etd: formatDateForDB(formData.etd),
         eta: formatDateForDB(formData.eta),
+         lcl_fcl: formatStringForDB(formData.lclFcl),
         incoterms: formatStringForDB(formData.incoterms),
         service_type: formatStringForDB(formData.serviceType),
         freight: formatStringForDB(formData.freight),
@@ -711,6 +715,7 @@ const handleConfirmShipment = useCallback(async () => {
       shipmentDate: shipment.shipment_date,
       client: shipment.client,
       shipper: shipment.shipper,
+       lclFcl: shipment.lcl_fcl,
       consignee: shipment.consignee,
       address: shipment.address,
       por: shipment.por,
@@ -856,6 +861,29 @@ const handleConfirmShipment = useCallback(async () => {
         </div>
       );
     }
+    // In the renderSpecificFields function, add this condition
+if (shipmentType === 'TRANSPORT') {
+  return (
+    <div className="specific-fields-section">
+      <h3>Land Freight Details - {formData.tradeDirection}</h3>
+      <div className="form-grid-two-column">
+        <div className="form-group">
+          <label>LCL/FCL <span className="required">*</span></label>
+          <select 
+            name="lclFcl"
+            value={formData.lclFcl}
+            onChange={handleInputChange}
+          >
+            <option value="">Select Option</option>
+            <option value="LCL">LCL (Less than Container Load)</option>
+            <option value="FCL">FCL (Full Container Load)</option>
+          </select>
+        </div>
+        {/* Add other land-specific fields as needed */}
+      </div>
+    </div>
+  );
+}
     
     if (shipmentType === 'SEA FREIGHT') {
       return (
@@ -1530,6 +1558,22 @@ const handleConfirmShipment = useCallback(async () => {
         </div>
       </>
     )}
+    // In the summary step, add this section after the sea freight section
+{shipmentType === 'TRANSPORT' && (
+  <>
+    <div className="divider"></div>
+    <div className="land-freight-section">
+      <h3>Land Freight Details</h3>
+      <div className="summary-grid">
+        <div className="summary-row">
+          <span className="label">LCL/FCL:</span>
+          <span className="value">{formData.lclFcl}</span>
+        </div>
+        {/* Add other land-specific summary fields as needed */}
+      </div>
+    </div>
+  </>
+)}
 
     {/* Sea Freight Specific Fields */}
     {shipmentType === 'SEA FREIGHT' && (
