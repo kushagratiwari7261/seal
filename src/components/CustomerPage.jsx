@@ -242,8 +242,9 @@ const handleView = (customer) => {
     }
   };
 
-  const handleFileRemove = async (fileType, customerId) => {
+   const handleFileRemove = async (fileType, customerId) => {
     try {
+      // First check if we have a file to remove
       if (files[fileType]?.path) {
         // Delete from storage
         const { error: storageError } = await supabase.storage
@@ -280,7 +281,19 @@ const handleView = (customer) => {
         }
         
         // Update local state
-        setFiles(prev => ({ ...prev, [fileType]: null }));
+        setFiles(prev => ({ 
+          ...prev, 
+          [fileType]: null 
+        }));
+        
+        // Show success message
+        alert(`${fileType} removed successfully`);
+      } else {
+        // If no file path, just remove from local state
+        setFiles(prev => ({ 
+          ...prev, 
+          [fileType]: null 
+        }));
       }
     } catch (error) {
       console.error(`Error removing ${fileType}:`, error);
